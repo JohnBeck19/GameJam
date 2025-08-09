@@ -341,7 +341,7 @@ public class UgsLobbyManager : MonoBehaviour
         }
     }
 
-    async void OnTransportFailure(bool isServer)
+    async void OnTransportFailure()
     {
         Debug.LogError("Transport failure detected. Attempting host recovery...");
         if (!IsHost || CurrentLobby == null)
