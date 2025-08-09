@@ -120,10 +120,18 @@ public class UgsLobbyManager : MonoBehaviour
     {
         await EnsureServicesAsync();
 
+        // Normalize user input to avoid common typos (e.g., 'O' -> '0')
+        string originalCode = lobbyCode ?? string.Empty;
+        string normalizedCode = NormalizeLobbyCode(originalCode);
+        if (!string.Equals(originalCode, normalizedCode, StringComparison.Ordinal))
+        {
+            Debug.Log($"Normalized lobby code '{originalCode}' -> '{normalizedCode}'");
+        }
+
         Lobby joined = null;
 
         // If already tracking a lobby, reuse if codes match; otherwise leave local reference only
-        if (CurrentLobby != null && string.Equals(CurrentLobby.LobbyCode, lobbyCode, StringComparison.OrdinalIgnoreCase))
+        if (CurrentLobby != null && string.Equals(CurrentLobby.LobbyCode, normalizedCode, StringComparison.OrdinalIgnoreCase))
         {
             joined = CurrentLobby;
         }
@@ -132,11 +140,23 @@ public class UgsLobbyManager : MonoBehaviour
         {
             try
             {
-                joined = await LobbyService.Instance.JoinLobbyByCodeAsync(lobbyCode);
+                joined = await LobbyService.Instance.JoinLobbyByCodeAsync(normalizedCode);
             }
             catch (Exception e)
             {
-                // If we get already-in-lobby, try to fetch it
+                // If invalid code, don't spam fallback calls
+                var emsg = e.Message?.ToLowerInvariant() ?? string.Empty;
+                if (emsg.Contains("invalid character") || (emsg.Contains("invalid") && emsg.Contains("lobby code")))
+                {
+                    throw;
+                }
+                if (emsg.Contains("rate limit"))
+                {
+                    await Task.Delay(1200);
+                    throw;
+                }
+
+                // Otherwise, try to fetch joined lobbies
                 Debug.LogWarning($"Join by code failed: {e.Message}. Attempting to fetch joined lobbies...");
                 try
                 {
@@ -147,7 +167,7 @@ public class UgsLobbyManager : MonoBehaviour
                         Lobby lobDetail = null;
                         try { lobDetail = await LobbyService.Instance.GetLobbyAsync(lobbyId); }
                         catch (Exception e3) { Debug.LogWarning($"GetLobbyAsync failed for {lobbyId}: {e3.Message}"); }
-                        if (lobDetail != null && string.Equals(lobDetail.LobbyCode, lobbyCode, StringComparison.OrdinalIgnoreCase))
+                        if (lobDetail != null && string.Equals(lobDetail.LobbyCode, normalizedCode, StringComparison.OrdinalIgnoreCase))
                         {
                             joined = lobDetail;
                             break;
@@ -286,13 +306,40 @@ public class UgsLobbyManager : MonoBehaviour
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"Fetch relay code (backoff) attempt {attempt} failed: {e.Message}");
+                var emsg = e.Message?.ToLowerInvariant() ?? string.Empty;
+                if (emsg.Contains("rate limit"))
+                {
+                    Debug.LogWarning($"Fetch relay code (backoff) attempt {attempt} hit rate limit. Backing off...");
+                }
+                else
+                {
+                    Debug.LogWarning($"Fetch relay code (backoff) attempt {attempt} failed: {e.Message}");
+                }
             }
             await Task.Delay(delay);
             // Exponential backoff with cap
             delay = Mathf.Min(delay * 2, 7000);
         }
         return null;
+    }
+
+    static string NormalizeLobbyCode(string input)
+    {
+        // Replace visually ambiguous characters commonly mis-typed in codes
+        // O->0, I->1, L->1, S->5, Z->2 (only when those letters appear)
+        string s = (input ?? string.Empty).Trim();
+        if (s.Length == 0) return s;
+        var sb = new System.Text.StringBuilder(s.Length);
+        for (int i = 0; i < s.Length; i++)
+        {
+            char c = s[i];
+            if (c == 'O') c = '0';
+            else if (c == 'I' || c == 'L') c = '1';
+            else if (c == 'S') c = '5';
+            else if (c == 'Z') c = '2';
+            sb.Append(c);
+        }
+        return sb.ToString();
     }
 
     public async Task LeaveAsync()

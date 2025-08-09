@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9fe95b0a32f4deb4baa0d297b0992332, type: 3}
+  m_Name: TestRadial
+  m_EditorClassIdentifier: Assembly-CSharp::GameJam.Combat.RadialShotPattern
+  projectilePrefab: {fileID: 8308358028949851053, guid: e8811e05d662bc9438faec1b0be3976a, type: 3}
+  trajectory: {fileID: 11400000, guid: 86232161e1a2d2a479cda451cdd6be95, type: 2}
+  projectileSpeed: 10
+  attachmentMode: 0
+  projectileCount: 8
+  startAngleDeg: 0
+  alignToFirePoint: 1
