@@ -49,6 +49,7 @@ namespace GameJam.Combat
             Quaternion rot = Quaternion.AngleAxis(Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg, Vector3.forward);
 
             Projectile2D proj = Instantiate(projectilePrefab, spawnPos, rot);
+            // Initialize with shooter so projectile can read collision masks and attachment
             proj.Initialize(shooter, spawnPos, dir, projectileSpeed, trajectory, attachmentMode);
             return proj;
         }

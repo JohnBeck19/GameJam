@@ -1,8 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using Unity.Netcode;
 
-public class Player : NetworkBehaviour
+public class Player : MonoBehaviour
 {
     [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 5f;
@@ -32,16 +31,7 @@ public class Player : NetworkBehaviour
     private float dashCooldownTimer;
     private Vector2 dashDirection;
     
-    // Netcode state
-    private readonly NetworkVariable<Vector2> networkPosition = new NetworkVariable<Vector2>();
-    private readonly NetworkVariable<float> networkRotationZ = new NetworkVariable<float>();
-    
-    // Server-side input snapshot (authoritative)
-    private Vector2 serverMoveInput;
-    private Vector2 serverAimDirection = Vector2.right;
-    private bool serverDashRequested;
-    
-    // Owner-side transient input
+    // Transient input
     private bool ownerDashPressedThisFrame;
     
     // Input system
@@ -95,56 +85,27 @@ public class Player : NetworkBehaviour
     
     void Update()
     {
-        // Only the owner reads local input
-        if (IsOwner)
+        // Local-only: read input, aim, and dash
+        HandleInput();
+        HandleDashInput();
+        UpdateFacingDirection();
+
+        if (ownerDashPressedThisFrame)
         {
-            HandleInput();
-            HandleDashInput();
-            // Update facing direction for owner only (used to compute aim to send to server)
-            UpdateFacingDirection();
-            // Send input to server
-            SendInputToServer();
+            ownerDashPressedThisFrame = false;
+            TryDash();
         }
-        
-        // Only the server updates timers
-        if (IsServer)
-        {
-            UpdateDashTimers();
-        }
-        else
-        {
-            // Non-server clients interpolate towards server state
-            ApplyClientInterpolation();
-        }
+
+        UpdateDashTimers();
     }
 
     
     void FixedUpdate()
     {
-        if (!IsServer)
-            return;
-        
-        // Server applies latest input snapshot from owner
-        moveInput = serverMoveInput;
+        // Local-only: apply movement and rotation based on current input
         isMoving = moveInput.magnitude > 0.1f;
-        if (serverAimDirection.sqrMagnitude > 0.0001f)
-        {
-            facingDirection = serverAimDirection.normalized;
-        }
-        
-        if (serverDashRequested)
-        {
-            TryDash();
-            serverDashRequested = false;
-        }
-        
-        // Server handles movement and rotation
         HandleMovement();
         HandleRotation();
-        
-        // Publish state to clients
-        networkPosition.Value = rb.position;
-        networkRotationZ.Value = transform.eulerAngles.z;
     }
     
     void HandleInput()
@@ -224,7 +185,7 @@ public class Player : NetworkBehaviour
         
         if (playerInput != null && jumpAction != null)
         {
-            // Use new input system - use Jump action for dash
+        // Use new input system - use Jump action for dash
             dashPressed = jumpAction.WasPressedThisFrame();
         }
         else
@@ -323,8 +284,6 @@ public class Player : NetworkBehaviour
     // --- Cursor/Facing helpers ---
     void UpdateFacingDirection()
     {
-        if (!IsOwner)
-            return;
         if (!TryGetMouseWorldPosition(out Vector3 mouseWorld))
             return;
         
@@ -361,64 +320,5 @@ public class Player : NetworkBehaviour
         return true;
     }
 
-    // --- Netcode helpers ---
-    public override void OnNetworkSpawn()
-    {
-        base.OnNetworkSpawn();
-        // Only server simulates physics
-        if (rb != null)
-        {
-            rb.simulated = IsServer;
-        }
-        
-        // Initialize network state on server
-        if (IsServer)
-        {
-            networkPosition.Value = rb != null ? rb.position : (Vector2)transform.position;
-            networkRotationZ.Value = transform.eulerAngles.z;
-        }
-        
-        // Subscribe to changes to snap on first update
-        networkPosition.OnValueChanged += (oldVal, newVal) =>
-        {
-            if (IsServer) return;
-            // Optionally snap if too far
-            if (((Vector2)transform.position - newVal).sqrMagnitude > 1f)
-            {
-                transform.position = newVal;
-            }
-        };
-    }
 
-    void ApplyClientInterpolation()
-    {
-        // Interpolate non-server clients toward server state
-        Vector2 targetPos = networkPosition.Value;
-        float targetRot = networkRotationZ.Value;
-        
-        float posLerp = 15f * Time.deltaTime;
-        float rotStep = rotationSpeed * Time.deltaTime;
-        
-        transform.position = Vector2.Lerp(transform.position, targetPos, posLerp);
-        float newAngle = Mathf.MoveTowardsAngle(transform.eulerAngles.z, targetRot, rotStep);
-        transform.rotation = Quaternion.Euler(0f, 0f, newAngle);
-    }
-
-    void SendInputToServer()
-    {
-        Vector2 aim = facingDirection.sqrMagnitude > 0.0001f ? facingDirection : Vector2.right;
-        bool dash = ownerDashPressedThisFrame;
-        ownerDashPressedThisFrame = false;
-        SubmitInputServerRpc(moveInput, aim, dash);
-    }
-
-    [ServerRpc]
-    void SubmitInputServerRpc(Vector2 move, Vector2 aim, bool dash)
-    {
-        serverMoveInput = move;
-        if (aim.sqrMagnitude > 0.0001f)
-            serverAimDirection = aim.normalized;
-        if (dash)
-            serverDashRequested = true;
-    }
 }
