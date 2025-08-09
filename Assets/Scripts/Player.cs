@@ -1,7 +1,8 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Unity.Netcode;
 
-public class Player : MonoBehaviour
+public class Player : NetworkBehaviour
 {
     [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 5f;
@@ -22,6 +23,7 @@ public class Player : MonoBehaviour
     private Vector2 moveInput;
     private Vector2 currentVelocity;
     private bool isMoving;
+    private Vector2 facingDirection = Vector2.right; // Updated each frame to point toward cursor
     
     // Dash variables
     private bool isDashing;
@@ -29,6 +31,18 @@ public class Player : MonoBehaviour
     private float dashTimer;
     private float dashCooldownTimer;
     private Vector2 dashDirection;
+    
+    // Netcode state
+    private readonly NetworkVariable<Vector2> networkPosition = new NetworkVariable<Vector2>();
+    private readonly NetworkVariable<float> networkRotationZ = new NetworkVariable<float>();
+    
+    // Server-side input snapshot (authoritative)
+    private Vector2 serverMoveInput;
+    private Vector2 serverAimDirection = Vector2.right;
+    private bool serverDashRequested;
+    
+    // Owner-side transient input
+    private bool ownerDashPressedThisFrame;
     
     // Input system
     private PlayerInput playerInput;
@@ -58,6 +72,7 @@ public class Player : MonoBehaviour
         rb.gravityScale = 0f; // No gravity for top-down
         rb.linearDamping = 0f; // We'll handle deceleration manually
         rb.constraints = RigidbodyConstraints2D.FreezeRotation; // Prevent rotation from physics
+        rb.interpolation = RigidbodyInterpolation2D.Interpolate; // Smooth visuals when physics runs in FixedUpdate
     }
     
     void SetupInput()
@@ -80,23 +95,56 @@ public class Player : MonoBehaviour
     
     void Update()
     {
-        // Handle input
-        HandleInput();
+        // Only the owner reads local input
+        if (IsOwner)
+        {
+            HandleInput();
+            HandleDashInput();
+            // Update facing direction for owner only (used to compute aim to send to server)
+            UpdateFacingDirection();
+            // Send input to server
+            SendInputToServer();
+        }
         
-        // Handle dash input
-        HandleDashInput();
-        
-        // Handle rotation towards movement direction
-        HandleRotation();
-        
-        // Update dash timers
-        UpdateDashTimers();
+        // Only the server updates timers
+        if (IsServer)
+        {
+            UpdateDashTimers();
+        }
+        else
+        {
+            // Non-server clients interpolate towards server state
+            ApplyClientInterpolation();
+        }
     }
+
     
     void FixedUpdate()
     {
-        // Handle movement in FixedUpdate for consistent physics
+        if (!IsServer)
+            return;
+        
+        // Server applies latest input snapshot from owner
+        moveInput = serverMoveInput;
+        isMoving = moveInput.magnitude > 0.1f;
+        if (serverAimDirection.sqrMagnitude > 0.0001f)
+        {
+            facingDirection = serverAimDirection.normalized;
+        }
+        
+        if (serverDashRequested)
+        {
+            TryDash();
+            serverDashRequested = false;
+        }
+        
+        // Server handles movement and rotation
         HandleMovement();
+        HandleRotation();
+        
+        // Publish state to clients
+        networkPosition.Value = rb.position;
+        networkRotationZ.Value = transform.eulerAngles.z;
     }
     
     void HandleInput()
@@ -134,8 +182,13 @@ public class Player : MonoBehaviour
         }
         else if (isMoving)
         {
-            // Calculate target velocity based on input
-            targetVelocity = moveInput * moveSpeed;
+            // Move relative to the player's facing (use transform to avoid Update/FixedUpdate drift)
+            Vector2 forward = (Vector2)transform.right;
+            Vector2 right = new Vector2(-forward.y, forward.x);
+            Vector2 worldMove = (forward * moveInput.y) + (right * moveInput.x);
+            
+            // Calculate target velocity based on local-space input mapped to world
+            targetVelocity = worldMove * moveSpeed;
             
             // Smoothly accelerate towards target velocity
             currentVelocity = Vector2.MoveTowards(currentVelocity, targetVelocity, acceleration * Time.fixedDeltaTime);
@@ -152,17 +205,17 @@ public class Player : MonoBehaviour
     
     void HandleRotation()
     {
-        if (isMoving)
-        {
-            // Calculate the angle to rotate towards
-            float targetAngle = Mathf.Atan2(moveInput.y, moveInput.x) * Mathf.Rad2Deg;
-            
-            // Smoothly rotate towards the target angle
-            float currentAngle = transform.eulerAngles.z;
-            float newAngle = Mathf.MoveTowardsAngle(currentAngle, targetAngle, rotationSpeed * Time.deltaTime);
-            
-            transform.rotation = Quaternion.Euler(0f, 0f, newAngle);
-        }
+        if (facingDirection.sqrMagnitude < 0.0001f)
+            return;
+        
+        // Calculate the angle to rotate towards (point toward cursor)
+        float targetAngle = Mathf.Atan2(facingDirection.y, facingDirection.x) * Mathf.Rad2Deg;
+        
+        // Smoothly rotate towards the target angle
+        float currentAngle = transform.eulerAngles.z;
+        float newAngle = Mathf.MoveTowardsAngle(currentAngle, targetAngle, rotationSpeed * Time.deltaTime);
+        
+        transform.rotation = Quaternion.Euler(0f, 0f, newAngle);
     }
     
     void HandleDashInput()
@@ -180,10 +233,7 @@ public class Player : MonoBehaviour
             dashPressed = Input.GetKeyDown(KeyCode.Space);
         }
         
-        if (dashPressed)
-        {
-            TryDash();
-        }
+        ownerDashPressedThisFrame = dashPressed;
     }
     
     void TryDash()
@@ -201,8 +251,15 @@ public class Player : MonoBehaviour
         canDash = false;
         dashTimer = dashDuration;
         
-        // Set dash direction to the direction the player is facing (based on movement input)
-        dashDirection = moveInput.normalized;
+        // Dash in the current world movement direction (relative to facing). If no input, dash forward toward cursor
+        Vector2 forward = facingDirection.sqrMagnitude > 0.0001f ? facingDirection : (Vector2)transform.right;
+        Vector2 right = new Vector2(-forward.y, forward.x);
+        Vector2 worldMove = (forward * moveInput.y) + (right * moveInput.x);
+        if (worldMove.sqrMagnitude < 0.0001f)
+        {
+            worldMove = forward;
+        }
+        dashDirection = worldMove.normalized;
         
         Debug.Log("Dash started! Direction: " + dashDirection);
     }
@@ -261,5 +318,107 @@ public class Player : MonoBehaviour
     public Vector2 GetNormalizedInput()
     {
         return moveInput.normalized;
+    }
+
+    // --- Cursor/Facing helpers ---
+    void UpdateFacingDirection()
+    {
+        if (!IsOwner)
+            return;
+        if (!TryGetMouseWorldPosition(out Vector3 mouseWorld))
+            return;
+        
+        Vector2 toMouse = ((Vector2)mouseWorld - (Vector2)transform.position);
+        if (toMouse.sqrMagnitude > 0.0001f)
+        {
+            facingDirection = toMouse.normalized;
+        }
+    }
+    
+    bool TryGetMouseWorldPosition(out Vector3 worldPosition)
+    {
+        worldPosition = Vector3.zero;
+        Camera cam = Camera.main;
+        if (cam == null)
+            return false;
+        
+        Vector2 screenPos;
+        #if ENABLE_INPUT_SYSTEM
+        if (playerInput != null && UnityEngine.InputSystem.Mouse.current != null)
+        {
+            screenPos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
+        }
+        else
+        #endif
+        {
+            screenPos = Input.mousePosition;
+        }
+        
+        float zDistance = transform.position.z - cam.transform.position.z;
+        Vector3 sp = new Vector3(screenPos.x, screenPos.y, zDistance);
+        worldPosition = cam.ScreenToWorldPoint(sp);
+        worldPosition.z = transform.position.z;
+        return true;
+    }
+
+    // --- Netcode helpers ---
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+        // Only server simulates physics
+        if (rb != null)
+        {
+            rb.simulated = IsServer;
+        }
+        
+        // Initialize network state on server
+        if (IsServer)
+        {
+            networkPosition.Value = rb != null ? rb.position : (Vector2)transform.position;
+            networkRotationZ.Value = transform.eulerAngles.z;
+        }
+        
+        // Subscribe to changes to snap on first update
+        networkPosition.OnValueChanged += (oldVal, newVal) =>
+        {
+            if (IsServer) return;
+            // Optionally snap if too far
+            if (((Vector2)transform.position - newVal).sqrMagnitude > 1f)
+            {
+                transform.position = newVal;
+            }
+        };
+    }
+
+    void ApplyClientInterpolation()
+    {
+        // Interpolate non-server clients toward server state
+        Vector2 targetPos = networkPosition.Value;
+        float targetRot = networkRotationZ.Value;
+        
+        float posLerp = 15f * Time.deltaTime;
+        float rotStep = rotationSpeed * Time.deltaTime;
+        
+        transform.position = Vector2.Lerp(transform.position, targetPos, posLerp);
+        float newAngle = Mathf.MoveTowardsAngle(transform.eulerAngles.z, targetRot, rotStep);
+        transform.rotation = Quaternion.Euler(0f, 0f, newAngle);
+    }
+
+    void SendInputToServer()
+    {
+        Vector2 aim = facingDirection.sqrMagnitude > 0.0001f ? facingDirection : Vector2.right;
+        bool dash = ownerDashPressedThisFrame;
+        ownerDashPressedThisFrame = false;
+        SubmitInputServerRpc(moveInput, aim, dash);
+    }
+
+    [ServerRpc]
+    void SubmitInputServerRpc(Vector2 move, Vector2 aim, bool dash)
+    {
+        serverMoveInput = move;
+        if (aim.sqrMagnitude > 0.0001f)
+            serverAimDirection = aim.normalized;
+        if (dash)
+            serverDashRequested = true;
     }
 }
