@@ -3,6 +3,9 @@ using UnityEngine.InputSystem;
 
 public class Player : MonoBehaviour
 {
+    [Header("Health")]
+    [SerializeField] private float maxHealth = 5f;
+    [SerializeField] private float currentHealth = 5f;
     [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float acceleration = 10f;
@@ -41,6 +44,9 @@ public class Player : MonoBehaviour
     
     void Awake()
     {
+        // Initialize health
+        currentHealth = Mathf.Clamp(currentHealth, 0f, maxHealth);
+
         // Get or add required components
         if (rb == null)
             rb = GetComponent<Rigidbody2D>();

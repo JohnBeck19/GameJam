@@ -18,10 +18,27 @@ namespace GameJam.Combat
         [Tooltip("If true, jitter is applied uniquely per projectile. If false, one jitter per Fire call.")]
         public bool jitterPerProjectile = true;
 
+        // Internal spawn collection used to return references for callers that need to manage spawned projectiles
+        private static bool s_isCollectingSpawns;
+        private static System.Collections.Generic.List<Projectile2D> s_spawnBuffer;
+
         /// <summary>
         /// Fire the pattern from the given shooter and fire point.
         /// </summary>
         public abstract void Fire(Transform shooter, Transform firePoint);
+
+        /// <summary>
+        /// Fire and return all spawned projectiles for this call.
+        /// </summary>
+        public System.Collections.Generic.List<Projectile2D> FireAndReturnSpawns(Transform shooter, Transform firePoint)
+        {
+            if (s_spawnBuffer == null) s_spawnBuffer = new System.Collections.Generic.List<Projectile2D>(8);
+            s_spawnBuffer.Clear();
+            s_isCollectingSpawns = true;
+            Fire(shooter, firePoint);
+            s_isCollectingSpawns = false;
+            return new System.Collections.Generic.List<Projectile2D>(s_spawnBuffer);
+        }
 
         /// <summary>
         /// Optional hook to use a global angle offset (degrees) provided by the caller.
@@ -30,6 +47,20 @@ namespace GameJam.Combat
         public virtual void FireWithAngleOffset(Transform shooter, Transform firePoint, float globalAngleOffsetDeg)
         {
             Fire(shooter, firePoint);
+        }
+
+        /// <summary>
+        /// Fire with angle offset and return spawned projectiles for this call.
+        /// If the concrete pattern doesn't use the offset override, it will fallback to Fire().
+        /// </summary>
+        public System.Collections.Generic.List<Projectile2D> FireWithAngleOffsetAndReturnSpawns(Transform shooter, Transform firePoint, float globalAngleOffsetDeg)
+        {
+            if (s_spawnBuffer == null) s_spawnBuffer = new System.Collections.Generic.List<Projectile2D>(8);
+            s_spawnBuffer.Clear();
+            s_isCollectingSpawns = true;
+            FireWithAngleOffset(shooter, firePoint, globalAngleOffsetDeg);
+            s_isCollectingSpawns = false;
+            return new System.Collections.Generic.List<Projectile2D>(s_spawnBuffer);
         }
 
         protected Projectile2D Spawn(Transform shooter, Transform firePoint, Vector2 dir)
@@ -51,6 +82,12 @@ namespace GameJam.Combat
             Projectile2D proj = Instantiate(projectilePrefab, spawnPos, rot);
             // Initialize with shooter so projectile can read collision masks and attachment
             proj.Initialize(shooter, spawnPos, dir, projectileSpeed, trajectory, attachmentMode);
+
+            if (s_isCollectingSpawns)
+            {
+                if (s_spawnBuffer == null) s_spawnBuffer = new System.Collections.Generic.List<Projectile2D>(8);
+                s_spawnBuffer.Add(proj);
+            }
             return proj;
         }
 
