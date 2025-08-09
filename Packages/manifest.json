@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.alven.fishnet.unitytransport": "https://github.com/ooonush/FishyUnityTransport.git?path=Assets/FishNet/Plugins/FishyUnityTransport",
     "com.unity.2d.animation": "12.0.2",
     "com.unity.2d.aseprite": "2.0.1",
     "com.unity.2d.psdimporter": "11.0.1",
@@ -17,7 +18,6 @@
     "com.unity.multiplayer.playmode": "1.6.0",
     "com.unity.multiplayer.tools": "2.2.6",
     "com.unity.multiplayer.widgets": "1.0.1",
-    "com.unity.netcode.gameobjects": "2.4.4",
     "com.unity.render-pipelines.universal": "17.2.0",
     "com.unity.services.multiplayer": "1.1.6",
     "com.unity.services.vivox": "16.6.2",

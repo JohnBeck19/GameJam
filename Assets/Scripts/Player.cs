@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using Unity.Netcode;
+using FishNet.Object;
 
 public class Player : NetworkBehaviour
 {
@@ -31,10 +31,6 @@ public class Player : NetworkBehaviour
     private float dashTimer;
     private float dashCooldownTimer;
     private Vector2 dashDirection;
-    
-    // Netcode state
-    private readonly NetworkVariable<Vector2> networkPosition = new NetworkVariable<Vector2>();
-    private readonly NetworkVariable<float> networkRotationZ = new NetworkVariable<float>();
     
     // Server-side input snapshot (authoritative)
     private Vector2 serverMoveInput;
@@ -111,11 +107,6 @@ public class Player : NetworkBehaviour
         {
             UpdateDashTimers();
         }
-        else
-        {
-            // Non-server clients interpolate towards server state
-            ApplyClientInterpolation();
-        }
     }
 
     
@@ -142,9 +133,6 @@ public class Player : NetworkBehaviour
         HandleMovement();
         HandleRotation();
         
-        // Publish state to clients
-        networkPosition.Value = rb.position;
-        networkRotationZ.Value = transform.eulerAngles.z;
     }
     
     void HandleInput()
@@ -361,47 +349,26 @@ public class Player : NetworkBehaviour
         return true;
     }
 
-    // --- Netcode helpers ---
-    public override void OnNetworkSpawn()
+    // --- FishNet lifecycle ---
+    public override void OnStartServer()
     {
-        base.OnNetworkSpawn();
-        // Only server simulates physics
+        base.OnStartServer();
         if (rb != null)
-        {
-            rb.simulated = IsServer;
-        }
-        
-        // Initialize network state on server
-        if (IsServer)
-        {
-            networkPosition.Value = rb != null ? rb.position : (Vector2)transform.position;
-            networkRotationZ.Value = transform.eulerAngles.z;
-        }
-        
-        // Subscribe to changes to snap on first update
-        networkPosition.OnValueChanged += (oldVal, newVal) =>
-        {
-            if (IsServer) return;
-            // Optionally snap if too far
-            if (((Vector2)transform.position - newVal).sqrMagnitude > 1f)
-            {
-                transform.position = newVal;
-            }
-        };
+            rb.simulated = true;
     }
 
-    void ApplyClientInterpolation()
+    public override void OnStopServer()
     {
-        // Interpolate non-server clients toward server state
-        Vector2 targetPos = networkPosition.Value;
-        float targetRot = networkRotationZ.Value;
-        
-        float posLerp = 15f * Time.deltaTime;
-        float rotStep = rotationSpeed * Time.deltaTime;
-        
-        transform.position = Vector2.Lerp(transform.position, targetPos, posLerp);
-        float newAngle = Mathf.MoveTowardsAngle(transform.eulerAngles.z, targetRot, rotStep);
-        transform.rotation = Quaternion.Euler(0f, 0f, newAngle);
+        base.OnStopServer();
+        if (rb != null)
+            rb.simulated = false;
+    }
+
+    public override void OnStartClient()
+    {
+        base.OnStartClient();
+        if (!IsServer && rb != null)
+            rb.simulated = false;
     }
 
     void SendInputToServer()
@@ -409,11 +376,20 @@ public class Player : NetworkBehaviour
         Vector2 aim = facingDirection.sqrMagnitude > 0.0001f ? facingDirection : Vector2.right;
         bool dash = ownerDashPressedThisFrame;
         ownerDashPressedThisFrame = false;
-        SubmitInputServerRpc(moveInput, aim, dash);
+        if (IsServer)
+        {
+            // Host: apply immediately without RPC
+            SubmitInputServerRpc(moveInput, aim, dash);
+        }
+        else
+        {
+            // Client: send to server
+            SubmitInputServerRpc(moveInput, aim, dash);
+        }
     }
 
     [ServerRpc]
-    void SubmitInputServerRpc(Vector2 move, Vector2 aim, bool dash)
+    public void SubmitInputServerRpc(Vector2 move, Vector2 aim, bool dash)
     {
         serverMoveInput = move;
         if (aim.sqrMagnitude > 0.0001f)
