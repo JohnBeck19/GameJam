@@ -18,6 +18,10 @@ namespace GameJam.Combat
         [SerializeField]
         private bool faceMovementDirection = true;
 
+        [Header("Damage")]
+        [SerializeField] private float baseDamage = 1f;
+        private float damagePercent = 100f;
+
         private ProjectileTrajectory trajectory;
         private float speed;
         private float age;
@@ -37,6 +41,11 @@ namespace GameJam.Combat
             {
                 playerMask = provider.PlayerCollisionMask;
                 environmentMask = provider.EnvironmentCollisionMask;
+            }
+            // Pull damage percent if available
+            if (shooter != null && shooter.TryGetComponent<IProjectileDamageProvider>(out var dmg))
+            {
+                damagePercent = Mathf.Max(0f, dmg.DamagePercent);
             }
             trajectory = trajectoryAsset;
             speed = projectileSpeed;
@@ -89,7 +98,7 @@ namespace GameJam.Combat
             }
 
             age += Time.deltaTime;
-            if (age >= lifetimeSeconds)
+            if (lifetimeSeconds > 0f && age >= lifetimeSeconds)
             {
                 Destroy(gameObject);
                 return;
@@ -156,14 +165,19 @@ namespace GameJam.Combat
         {
             int otherLayer = other.gameObject.layer;
 
+            // Compute damage value
+            float totalDamage = baseDamage * (damagePercent / 100f);
+
             if (destroyOnEnvironmentHit && environmentMask != 0 && (environmentMask.value & (1 << otherLayer)) != 0)
             {
+                // TODO: optionally notify environment of impact with damage if desired
                 Destroy(gameObject);
                 return;
             }
 
             if (destroyOnPlayerHit && playerMask != 0 && (playerMask.value & (1 << otherLayer)) != 0)
             {
+                // TODO: apply damage to player when Health is implemented on player object
                 Destroy(gameObject);
                 return;
             }
