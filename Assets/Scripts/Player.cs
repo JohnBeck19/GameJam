@@ -1,8 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using FishNet.Object;
 
-public class Player : NetworkBehaviour
+public class Player : MonoBehaviour
 {
     [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 5f;
@@ -32,12 +31,7 @@ public class Player : NetworkBehaviour
     private float dashCooldownTimer;
     private Vector2 dashDirection;
     
-    // Server-side input snapshot (authoritative)
-    private Vector2 serverMoveInput;
-    private Vector2 serverAimDirection = Vector2.right;
-    private bool serverDashRequested;
-    
-    // Owner-side transient input
+    // Transient input
     private bool ownerDashPressedThisFrame;
     
     // Input system
@@ -91,48 +85,27 @@ public class Player : NetworkBehaviour
     
     void Update()
     {
-        // Only the owner reads local input
-        if (IsOwner)
+        // Local-only: read input, aim, and dash
+        HandleInput();
+        HandleDashInput();
+        UpdateFacingDirection();
+
+        if (ownerDashPressedThisFrame)
         {
-            HandleInput();
-            HandleDashInput();
-            // Update facing direction for owner only (used to compute aim to send to server)
-            UpdateFacingDirection();
-            // Send input to server
-            SendInputToServer();
+            ownerDashPressedThisFrame = false;
+            TryDash();
         }
-        
-        // Only the server updates timers
-        if (IsServer)
-        {
-            UpdateDashTimers();
-        }
+
+        UpdateDashTimers();
     }
 
     
     void FixedUpdate()
     {
-        if (!IsServer)
-            return;
-        
-        // Server applies latest input snapshot from owner
-        moveInput = serverMoveInput;
+        // Local-only: apply movement and rotation based on current input
         isMoving = moveInput.magnitude > 0.1f;
-        if (serverAimDirection.sqrMagnitude > 0.0001f)
-        {
-            facingDirection = serverAimDirection.normalized;
-        }
-        
-        if (serverDashRequested)
-        {
-            TryDash();
-            serverDashRequested = false;
-        }
-        
-        // Server handles movement and rotation
         HandleMovement();
         HandleRotation();
-        
     }
     
     void HandleInput()
@@ -212,7 +185,7 @@ public class Player : NetworkBehaviour
         
         if (playerInput != null && jumpAction != null)
         {
-            // Use new input system - use Jump action for dash
+        // Use new input system - use Jump action for dash
             dashPressed = jumpAction.WasPressedThisFrame();
         }
         else
@@ -311,8 +284,6 @@ public class Player : NetworkBehaviour
     // --- Cursor/Facing helpers ---
     void UpdateFacingDirection()
     {
-        if (!IsOwner)
-            return;
         if (!TryGetMouseWorldPosition(out Vector3 mouseWorld))
             return;
         
@@ -349,52 +320,5 @@ public class Player : NetworkBehaviour
         return true;
     }
 
-    // --- FishNet lifecycle ---
-    public override void OnStartServer()
-    {
-        base.OnStartServer();
-        if (rb != null)
-            rb.simulated = true;
-    }
 
-    public override void OnStopServer()
-    {
-        base.OnStopServer();
-        if (rb != null)
-            rb.simulated = false;
-    }
-
-    public override void OnStartClient()
-    {
-        base.OnStartClient();
-        if (!IsServer && rb != null)
-            rb.simulated = false;
-    }
-
-    void SendInputToServer()
-    {
-        Vector2 aim = facingDirection.sqrMagnitude > 0.0001f ? facingDirection : Vector2.right;
-        bool dash = ownerDashPressedThisFrame;
-        ownerDashPressedThisFrame = false;
-        if (IsServer)
-        {
-            // Host: apply immediately without RPC
-            SubmitInputServerRpc(moveInput, aim, dash);
-        }
-        else
-        {
-            // Client: send to server
-            SubmitInputServerRpc(moveInput, aim, dash);
-        }
-    }
-
-    [ServerRpc]
-    public void SubmitInputServerRpc(Vector2 move, Vector2 aim, bool dash)
-    {
-        serverMoveInput = move;
-        if (aim.sqrMagnitude > 0.0001f)
-            serverAimDirection = aim.normalized;
-        if (dash)
-            serverDashRequested = true;
-    }
 }

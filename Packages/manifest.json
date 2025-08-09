@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "com.alven.fishnet.unitytransport": "https://github.com/ooonush/FishyUnityTransport.git?path=Assets/FishNet/Plugins/FishyUnityTransport",
     "com.unity.2d.animation": "12.0.2",
     "com.unity.2d.aseprite": "2.0.1",
     "com.unity.2d.psdimporter": "11.0.1",
