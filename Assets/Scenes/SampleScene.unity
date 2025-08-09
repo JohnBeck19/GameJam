@@ -175,7 +175,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 325349867}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3f9f23ce85c34fb4f82f762d38e4ecb1, type: 3}
   m_Name: 
@@ -271,7 +271,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 325349867}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 62899f850307741f2a39c98a8b639597, type: 3}
   m_Name: 
@@ -1165,7 +1165,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a6a1e882201f8004cbe06fe499a31319, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameJam.Enemies.ChaserEnemy2D
-  detectionRadius: 6
+  detectionRadius: 33
   playerLayerMask:
     serializedVersion: 2
     m_Bits: 8
@@ -1173,6 +1173,12 @@ MonoBehaviour:
   approachBuffer: 0.1
   stopDistanceFallback: 0.5
   facingAngleOffset: 0
+  playerCollisionMask:
+    serializedVersion: 2
+    m_Bits: 8
+  environmentCollisionMask:
+    serializedVersion: 2
+    m_Bits: 128
 --- !u!114 &1342445570
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1185,7 +1191,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: daf4b959f5282dd4e96df5780486afa7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameJam.Combat.Shooter
-  shotPattern: {fileID: 11400000, guid: 363b5ed993fcb124a8b91ee695aaf55d, type: 2}
+  shotPattern: {fileID: 11400000, guid: 90528587e01864844aca95e23575ee80, type: 2}
   firePoint: {fileID: 1342445566}
   autoFire: 1
   fireIntervalSeconds: 0.5

@@ -8,6 +8,12 @@ namespace GameJam.Combat
         [SerializeField]
         private float lifetimeSeconds = 5f;
 
+        [Header("Collision")]
+        [SerializeField] private bool destroyOnEnvironmentHit = true;
+        [SerializeField] private bool destroyOnPlayerHit = true;
+        private LayerMask playerMask;
+        private LayerMask environmentMask;
+
         [Header("Visual")]
         [SerializeField]
         private bool faceMovementDirection = true;
@@ -21,12 +27,23 @@ namespace GameJam.Combat
         private Vector3 initialLocalPosition;
         private Transform shooterParent;
 
+        // Keep a persistent reference to the shooter to support return-to-shooter logic when detached
+        private Transform shooterWorldRef;
+
         public void Initialize(Transform shooter, Vector3 spawnPosition, Vector2 initialDirection, float projectileSpeed, ProjectileTrajectory trajectoryAsset, ProjectileAttachmentMode attachmentMode)
         {
+            // Pull collision masks from shooter if available
+            if (shooter != null && shooter.TryGetComponent<IProjectileCollisionProvider>(out var provider))
+            {
+                playerMask = provider.PlayerCollisionMask;
+                environmentMask = provider.EnvironmentCollisionMask;
+            }
             trajectory = trajectoryAsset;
             speed = projectileSpeed;
             attachedToShooter = attachmentMode == ProjectileAttachmentMode.ParentToShooter;
             age = 0f;
+
+            shooterWorldRef = shooter;
 
             if (attachedToShooter && shooter != null)
             {
@@ -86,7 +103,33 @@ namespace GameJam.Combat
             }
             else
             {
-                transform.position = initialWorldPosition + (Vector3)disp;
+                // Default world-space displacement
+                Vector3 targetWorldPos = initialWorldPosition + (Vector3)disp;
+
+                // Special handling for boomerang homing back to shooter
+                if (trajectory is BoomerangTrajectory boom && boom.returnToShooter && shooterWorldRef != null)
+                {
+                    float t = age;
+                    if (t > boom.outwardDuration)
+                    {
+                        // During return phase, blend toward shooter's current position by using return curve as weight
+                        float t2 = t - boom.outwardDuration;
+                        float norm = boom.returnDuration > 0f ? Mathf.Clamp01(t2 / boom.returnDuration) : 1f;
+                        float w = boom.returnCurve.Evaluate(norm); // 1 at start of return, 0 at end
+                        Vector3 outwardApex = initialWorldPosition + (Vector3)(initialDirSpace.normalized * (speed * boom.outwardDuration));
+                        // Lerp from outward apex toward shooter over the return using (1 - w) as progress
+                        Vector3 homed = Vector3.Lerp(outwardApex, shooterWorldRef.position, 1f - w);
+                        targetWorldPos = homed;
+
+                        if (boom.destroyWhenReachingShooter && Vector3.Distance(targetWorldPos, shooterWorldRef.position) <= boom.returnCompleteRadius)
+                        {
+                            Destroy(gameObject);
+                            return;
+                        }
+                    }
+                }
+
+                transform.position = targetWorldPos;
             }
 
             if (faceMovementDirection)
@@ -106,6 +149,23 @@ namespace GameJam.Combat
                     float angleDeg = Mathf.Atan2(worldDir.y, worldDir.x) * Mathf.Rad2Deg;
                     transform.rotation = Quaternion.AngleAxis(angleDeg, Vector3.forward);
                 }
+            }
+        }
+
+        private void OnTriggerEnter2D(Collider2D other)
+        {
+            int otherLayer = other.gameObject.layer;
+
+            if (destroyOnEnvironmentHit && environmentMask != 0 && (environmentMask.value & (1 << otherLayer)) != 0)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            if (destroyOnPlayerHit && playerMask != 0 && (playerMask.value & (1 << otherLayer)) != 0)
+            {
+                Destroy(gameObject);
+                return;
             }
         }
     }

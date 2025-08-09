@@ -15,4 +15,4 @@ MonoBehaviour:
   targetRadius: 2
   growthTime: 0.3
   angularSpeedDegPerSec: 90
-  clockwise: 1
+  clockwise: 0

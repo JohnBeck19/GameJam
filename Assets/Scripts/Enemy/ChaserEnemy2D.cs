@@ -1,8 +1,9 @@
 using UnityEngine;
+using GameJam.Combat;
 
 namespace GameJam.Enemies
 {
-    public class ChaserEnemy2D : MonoBehaviour
+    public class ChaserEnemy2D : MonoBehaviour, IProjectileCollisionProvider
     {
         [Header("Detection")]
         [SerializeField]
@@ -27,6 +28,10 @@ namespace GameJam.Enemies
         [Tooltip("Angle offset (in degrees) applied when rotating to face movement. Use this if your sprite's forward direction isn't to the right (0°). For up-facing sprites, try -90.")]
         [SerializeField]
         private float facingAngleOffset = 0f;
+
+        [Header("Projectile Collision Masks")]
+        [SerializeField] private LayerMask playerCollisionMask;
+        [SerializeField] private LayerMask environmentCollisionMask;
 
         private Transform currentTarget;
         private Collider2D currentTargetCollider;
@@ -178,5 +183,9 @@ namespace GameJam.Enemies
             Gizmos.color = Color.green;
             Gizmos.DrawWireSphere(transform.position, detectionRadius);
         }
+
+        // IProjectileCollisionProvider implementation
+        public LayerMask PlayerCollisionMask => playerCollisionMask;
+        public LayerMask EnvironmentCollisionMask => environmentCollisionMask;
     }
 } 
