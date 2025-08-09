@@ -6,6 +6,7 @@ public class Card : ScriptableObject
     public string itemName;
     public UpgradeType type;
     public Sprite icon;
+    [TextArea] public string description;
     public int value; //how much to increase or level up
     public enum UpgradeType { WEAPON, ARMOR, ATTACKSPEED,HEALTHBOOST }
 
