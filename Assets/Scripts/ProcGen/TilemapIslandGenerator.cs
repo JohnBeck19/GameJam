@@ -29,8 +29,29 @@ namespace ProcGen
 
         [Header("Tiles & Thresholds")]
         public TileBase floorTile;
+        [Tooltip("Optional: if provided, a variant will be chosen per floor cell.")]
+        public TileBase[] floorTiles;
         public TileBase wallTile;
         [Range(0f, 1f)] public float floorThreshold = 0.5f;
+
+        [Header("Floor Variant Noise")]
+        [Tooltip("Use a Perlin noise map to pick floor variants (organic patches). If disabled, falls back to deterministic hashing.")]
+        public bool usePerlinForFloorVariants = true;
+        [Min(0.0001f)] public float floorVariantScale = 12f;
+        public int floorVariantSeedOffset = 1337;
+        public Vector2 floorVariantOffset;
+        [Range(1, 8)] public int floorVariantOctaves = 1;
+        [Range(0f, 1f)] public float floorVariantPersistence = 0.5f;
+        [Min(1f)] public float floorVariantLacunarity = 2f;
+        [Tooltip("Clamp and remap the variant noise before choosing a tile. Useful to bias towards specific variants.")]
+        [Range(0f, 1f)] public float floorVariantClampMin = 0f;
+        [Range(0f, 1f)] public float floorVariantClampMax = 1f;
+        [Tooltip("Optional curve to remap 0..1 noise into a biased distribution for picking variants.")]
+        public AnimationCurve floorVariantRemap = AnimationCurve.Linear(0, 0, 1, 1);
+        [Tooltip("Blend amount with deterministic hash-based randomness (0 = pure noise, 1 = pure hash).")]
+        [Range(0f, 1f)] public float floorVariantHashBlend = 0f;
+        [Tooltip("Optional weights matching floorTiles; used to map noise to a weighted distribution.")]
+        public float[] floorTileWeights;
 
         [Header("Options")]
         public bool autoRegenerateInEditMode = false;
@@ -70,12 +91,24 @@ namespace ProcGen
         public bool preferCenterSpawn = true;
 
         private bool[,] lastFloorMask;
+        private float[,] lastVariantNoise;
 
         private void OnValidate()
         {
             width = Mathf.Max(1, width);
             height = Mathf.Max(1, height);
             lacunarity = Mathf.Max(1f, lacunarity);
+            floorVariantLacunarity = Mathf.Max(1f, floorVariantLacunarity);
+            if (floorVariantClampMax < floorVariantClampMin)
+            {
+                var tmp = floorVariantClampMax;
+                floorVariantClampMax = floorVariantClampMin;
+                floorVariantClampMin = tmp;
+            }
+            if (floorVariantRemap == null || floorVariantRemap.length == 0)
+            {
+                floorVariantRemap = AnimationCurve.Linear(0, 0, 1, 1);
+            }
 
             if (autoRegenerateInEditMode && !Application.isPlaying)
             {
@@ -153,6 +186,18 @@ namespace ProcGen
             }
             lastFloorMask = isFloorMask;
 
+            // Precompute floor variant noise if requested
+            if (usePerlinForFloorVariants && floorTiles != null && floorTiles.Length > 0)
+            {
+                lastVariantNoise = NoiseMapGenerator.GeneratePerlinNoiseMap(
+                    width, height, seed + floorVariantSeedOffset, floorVariantScale,
+                    floorVariantOctaves, floorVariantPersistence, floorVariantLacunarity, floorVariantOffset);
+            }
+            else
+            {
+                lastVariantNoise = null;
+            }
+
             // Paint floor and walls
             for (int y = 0; y < height; y++)
             {
@@ -164,13 +209,21 @@ namespace ProcGen
                     // Floor layer
                     if (floorTilemap != null)
                     {
-                        floorTilemap.SetTile(pos, isFloor ? floorTile : null);
+                        if (isFloor)
+                        {
+                            TileBase chosenFloor = GetFloorTileForCell(x, y);
+                            floorTilemap.SetTile(pos, chosenFloor);
+                        }
+                        else
+                        {
+                            floorTilemap.SetTile(pos, null);
+                        }
                     }
 
                     // Wall layer
                     if (wallTilemap != null)
                     {
-                        if (isFloor)
+                    if (isFloor)
                         {
                             wallTilemap.SetTile(pos, null);
                         }
@@ -251,6 +304,99 @@ namespace ProcGen
 
             // Three or four neighbors: fall back to generic edge or base wall
             return null;
+        }
+
+        private TileBase GetFloorTileForCell(int x, int y)
+        {
+            // Choose a tile deterministically per-cell if variants are provided
+            if (floorTiles != null && floorTiles.Length > 0)
+            {
+                // If a variant noise map is available, map noise value [0..1] to an index
+                if (usePerlinForFloorVariants && lastVariantNoise != null)
+                {
+                    float v = lastVariantNoise[x, y]; // 0..1
+                    // Clamp and normalize window
+                    v = Mathf.Clamp01(v);
+                    if (floorVariantClampMax > floorVariantClampMin)
+                    {
+                        v = Mathf.InverseLerp(floorVariantClampMin, floorVariantClampMax, v);
+                    }
+                    // Remap via curve
+                    if (floorVariantRemap != null && floorVariantRemap.length > 0)
+                    {
+                        v = Mathf.Clamp01(floorVariantRemap.Evaluate(v));
+                    }
+                    // Blend with hash-based randomness
+                    if (floorVariantHashBlend > 0f)
+                    {
+                        float hash01 = Hash01(x, y, seed);
+                        v = Mathf.Lerp(v, hash01, floorVariantHashBlend);
+                    }
+
+                    int idx = SelectVariantIndexFromValue(v, floorTiles.Length, floorTileWeights);
+                    return floorTiles[idx] != null ? floorTiles[idx] : floorTile;
+                }
+                // Fallback: deterministic hash by cell
+                unchecked
+                {
+                    int hash = 17;
+                    hash = hash * 31 + x;
+                    hash = hash * 31 + y;
+                    if (seed != 0)
+                        hash = hash * 31 + seed;
+                    int idx = Mathf.Abs(hash) % floorTiles.Length;
+                    return floorTiles[idx] != null ? floorTiles[idx] : floorTile;
+                }
+            }
+            return floorTile;
+        }
+
+        private int SelectVariantIndexFromValue(float value01, int count, float[] weights)
+        {
+            if (count <= 1) return 0;
+            if (weights == null || weights.Length != count)
+            {
+                int idx = Mathf.Clamp(Mathf.FloorToInt(value01 * count), 0, count - 1);
+                return idx;
+            }
+            // Normalize weights and build cumulative distribution
+            float total = 0f;
+            for (int i = 0; i < count; i++) total += Mathf.Max(0f, weights[i]);
+            if (total <= 0f)
+            {
+                int idx = Mathf.Clamp(Mathf.FloorToInt(value01 * count), 0, count - 1);
+                return idx;
+            }
+            float threshold = value01 * total;
+            float accum = 0f;
+            for (int i = 0; i < count; i++)
+            {
+                accum += Mathf.Max(0f, weights[i]);
+                if (threshold <= accum)
+                {
+                    return i;
+                }
+            }
+            return count - 1;
+        }
+
+        private float Hash01(int x, int y, int seedVal)
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 31 + x;
+                hash = hash * 31 + y;
+                hash = hash * 31 + seedVal;
+                uint uh = (uint)hash;
+                // Jenkins mix for better spread
+                uh += (uh << 10);
+                uh ^= (uh >> 6);
+                uh += (uh << 3);
+                uh ^= (uh >> 11);
+                uh += (uh << 15);
+                return (uh & 0xFFFFFF) / (float)0x1000000; // 0..1
+            }
         }
 
         private bool IsFloorAt(bool[,] floorMask, int x, int y)

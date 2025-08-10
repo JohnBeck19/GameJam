@@ -155,14 +155,9 @@ public class Player : MonoBehaviour
         }
         else if (isMoving)
         {
-            // Move relative to the player's facing (use transform to avoid Update/FixedUpdate drift)
-            Vector2 forward = (Vector2)transform.right;
-            Vector2 right = new Vector2(-forward.y, forward.x);
-            Vector2 worldMove = (forward * moveInput.y) + (right * moveInput.x);
-            
-            // Calculate target velocity based on local-space input mapped to world
-            targetVelocity = worldMove * moveSpeed;
-            
+            // WASD movement in world space, independent of aim
+            targetVelocity = moveInput * moveSpeed;
+
             // Smoothly accelerate towards target velocity
             currentVelocity = Vector2.MoveTowards(currentVelocity, targetVelocity, acceleration * Time.fixedDeltaTime);
         }
@@ -224,15 +219,9 @@ public class Player : MonoBehaviour
         canDash = false;
         dashTimer = dashDuration;
         
-        // Dash in the current world movement direction (relative to facing). If no input, dash forward toward cursor
-        Vector2 forward = facingDirection.sqrMagnitude > 0.0001f ? facingDirection : (Vector2)transform.right;
-        Vector2 right = new Vector2(-forward.y, forward.x);
-        Vector2 worldMove = (forward * moveInput.y) + (right * moveInput.x);
-        if (worldMove.sqrMagnitude < 0.0001f)
-        {
-            worldMove = forward;
-        }
-        dashDirection = worldMove.normalized;
+        // Dash in the current movement direction; if no input, dash toward cursor (aim)
+        Vector2 worldMove = isMoving ? moveInput : facingDirection;
+        dashDirection = worldMove.sqrMagnitude > 0.0001f ? worldMove.normalized : Vector2.right;
         
         Debug.Log("Dash started! Direction: " + dashDirection);
     }
