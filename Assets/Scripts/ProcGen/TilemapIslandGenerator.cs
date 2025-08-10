@@ -54,6 +54,23 @@ namespace ProcGen
         public TileBase cornerSE;
         public TileBase cornerSW;
 
+        [Header("Generation & Spawn")]
+        [Tooltip("Regenerate map when play starts.")]
+        public bool regenerateOnStart = true;
+        [Tooltip("Randomize seed on play start before generating.")]
+        public bool randomizeSeedOnStart = true;
+        [Tooltip("After generating, automatically select a spawn point and place/move the player.")]
+        public bool spawnAfterGenerate = true;
+        [Tooltip("Existing player transform to move to the spawn point. If null and a prefab is assigned, a new instance will be spawned.")]
+        public Transform playerTransform;
+        [Tooltip("If set and no existing player is provided, this prefab will be instantiated at the spawn point.")]
+        public GameObject playerPrefab;
+        [Range(0, 5)] public int spawnClearanceRadius = 1;
+        [Tooltip("Prefer a spawn close to the center if possible.")]
+        public bool preferCenterSpawn = true;
+
+        private bool[,] lastFloorMask;
+
         private void OnValidate()
         {
             width = Mathf.Max(1, width);
@@ -82,6 +99,18 @@ namespace ProcGen
             if (floorTilemap == null)
             {
                 floorTilemap = GetComponent<Tilemap>();
+            }
+        }
+
+        private void Start()
+        {
+            if (Application.isPlaying && regenerateOnStart)
+            {
+                if (randomizeSeedOnStart)
+                {
+                    seed = Random.Range(0, int.MaxValue);
+                }
+                Generate();
             }
         }
 
@@ -122,6 +151,7 @@ namespace ProcGen
                     isFloorMask[x, y] = noise[x, y] >= floorThreshold;
                 }
             }
+            lastFloorMask = isFloorMask;
 
             // Paint floor and walls
             for (int y = 0; y < height; y++)
@@ -170,6 +200,11 @@ namespace ProcGen
                         }
                     }
                 }
+            }
+
+            if (spawnAfterGenerate)
+            {
+                SpawnPlayerAtBestLocation();
             }
         }
 
@@ -253,6 +288,91 @@ namespace ProcGen
                 }
             }
             return false;
+        }
+
+        private void SpawnPlayerAtBestLocation()
+        {
+            if (lastFloorMask == null) return;
+            Vector3Int? spawnCellOpt = FindSpawnCell(lastFloorMask, spawnClearanceRadius, preferCenterSpawn);
+            if (!spawnCellOpt.HasValue) return;
+
+            Vector3Int spawnCell = spawnCellOpt.Value;
+            // Use floor tilemap if available for world conversion, else wall tilemap
+            Tilemap tm = floorTilemap != null ? floorTilemap : wallTilemap;
+            if (tm == null) return;
+            Vector3 worldPos = tm.GetCellCenterWorld(spawnCell);
+
+            if (playerTransform != null)
+            {
+                playerTransform.position = worldPos;
+            }
+            else if (playerPrefab != null)
+            {
+                var instance = GameObject.Instantiate(playerPrefab, worldPos, Quaternion.identity);
+                playerTransform = instance.transform;
+            }
+        }
+
+        private Vector3Int? FindSpawnCell(bool[,] floorMask, int clearanceRadius, bool centerFirst)
+        {
+            int w = floorMask.GetLength(0);
+            int h = floorMask.GetLength(1);
+
+            // Helper to test a cell
+            bool IsClear(int cx, int cy)
+            {
+                for (int dy = -clearanceRadius; dy <= clearanceRadius; dy++)
+                {
+                    for (int dx = -clearanceRadius; dx <= clearanceRadius; dx++)
+                    {
+                        int nx = cx + dx;
+                        int ny = cy + dy;
+                        if (nx < 0 || nx >= w || ny < 0 || ny >= h) return false;
+                        if (!floorMask[nx, ny]) return false;
+                    }
+                }
+                return true;
+            }
+
+            // Try center first
+            if (centerFirst)
+            {
+                int cx = w / 2;
+                int cy = h / 2;
+                if (IsClear(cx, cy))
+                {
+                    Vector3Int origin = new Vector3Int(-w / 2, -h / 2, 0);
+                    return new Vector3Int(origin.x + cx, origin.y + cy, 0);
+                }
+            }
+
+            // Random sampling
+            int attempts = Mathf.Min(2000, w * h);
+            for (int i = 0; i < attempts; i++)
+            {
+                int rx = Random.Range(0, w);
+                int ry = Random.Range(0, h);
+                if (IsClear(rx, ry))
+                {
+                    Vector3Int origin = new Vector3Int(-w / 2, -h / 2, 0);
+                    return new Vector3Int(origin.x + rx, origin.y + ry, 0);
+                }
+            }
+
+            // Fallback: first floor found
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    if (floorMask[x, y])
+                    {
+                        Vector3Int origin = new Vector3Int(-w / 2, -h / 2, 0);
+                        return new Vector3Int(origin.x + x, origin.y + y, 0);
+                    }
+                }
+            }
+
+            return null;
         }
     }
 }
