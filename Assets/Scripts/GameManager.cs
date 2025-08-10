@@ -66,6 +66,10 @@ public class GameManager : MonoBehaviour
     private bool _hasComputedBounds;
     private bool _reloadScheduled;
     private bool _hasExitedOnce;
+    private int _exitCount;
+
+    public bool HasExitedOnce => _hasExitedOnce;
+    public int ExitCount => _exitCount;
 
     private VolumeProfile _activePostProfile;
     private ColorAdjustments _ppColorAdjustments;
@@ -251,6 +255,7 @@ public class GameManager : MonoBehaviour
     {
         // Escalate severity per exit and mark that effects can begin
         _hasExitedOnce = true;
+        _exitCount++;
         currentSeverity = Mathf.Min(currentSeverity + severityPerExit, severityMax);
         var scene = SceneManager.GetActiveScene();
         SceneManager.LoadScene(scene.name);
