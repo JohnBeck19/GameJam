@@ -1,7 +1,26 @@
+using System.Collections;
 using UnityEngine;
 
-public class Weapon : MonoBehaviour
+public abstract class Weapon : MonoBehaviour
 {
-    float dmg;
+   [SerializeField] protected float dmg;
+   [SerializeField] float coolDown;
+    bool used;
+    public virtual void Use()
+    {
+        if (!used)
+        {
+            used = true;
+            StartCoroutine(ResetAtk());
+        }
+        
+
+    }
+
+    IEnumerator ResetAtk()
+    {
+        yield return new WaitForSeconds(coolDown);
+        used = false;
+    }
 
 }
