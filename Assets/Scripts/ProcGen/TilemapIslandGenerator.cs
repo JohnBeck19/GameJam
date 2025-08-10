@@ -9,6 +9,8 @@ namespace ProcGen
         [Header("Tilemaps")]
         public Tilemap floorTilemap;
         public Tilemap wallTilemap;
+        [Tooltip("Optional: separate tilemap for foliage/decoration placed on top of the floor.")]
+        public Tilemap foliageTilemap;
 
         [Header("Grid Size")]
         public int width = 128;
@@ -33,6 +35,79 @@ namespace ProcGen
         public TileBase[] floorTiles;
         public TileBase wallTile;
         [Range(0f, 1f)] public float floorThreshold = 0.5f;
+
+        [Header("Foliage Settings")]
+        [Tooltip("Tiles used as foliage/decoration. One will be chosen per placed cell.")]
+        public TileBase[] foliageTiles;
+        [Tooltip("Optional weights matching foliageTiles for weighted random selection.")]
+        public float[] foliageTileWeights;
+        [Tooltip("Overall chance to place foliage on an eligible floor cell when not using Perlin noise.")]
+        [Range(0f, 1f)] public float foliageDensity = 0.15f;
+        [Tooltip("Use Perlin noise to create natural foliage patches.")]
+        public bool usePerlinForFoliage = true;
+        [Min(0.0001f)] public float foliageScale = 10f;
+        public int foliageSeedOffset = 9001;
+        public Vector2 foliageOffset;
+        [Range(1, 8)] public int foliageOctaves = 1;
+        [Range(0f, 1f)] public float foliagePersistence = 0.5f;
+        [Min(1f)] public float foliageLacunarity = 2f;
+        [Tooltip("Normalized threshold on foliage noise (higher = sparser). Only used if Perlin is enabled.")]
+        [Range(0f, 1f)] public float foliageNoiseThreshold = 0.6f;
+        [Tooltip("Blend amount with deterministic hash-based randomness (0 = pure Perlin, 1 = pure random). Only used if Perlin is enabled.")]
+        [Range(0f, 1f)] public float foliageHashBlend = 0f;
+        [Tooltip("Avoid placing foliage on tiles adjacent to non-floor (near walls/edges).")]
+        public bool avoidEdgesForFoliage = true;
+        [Tooltip("Clear foliage in this radius around the chosen spawn cell.")]
+        [Range(0, 4)] public int spawnFoliageClearanceRadius = 1;
+        [Tooltip("Apply a random rotation to foliage tiles for visual variety.")]
+        public bool foliageRandomRotation = true;
+        [Tooltip("If enabled, foliage rotation is snapped to 0/90/180/270 degrees. If disabled, uses any 0..360 degrees.")]
+        public bool foliageUseRightAngles = true;
+        [Tooltip("Apply a random scale to foliage tiles for visual variety.")]
+        public bool foliageRandomScale = false;
+        [Tooltip("Use the same random scale on X and Y.")]
+        public bool foliageUseUniformScale = true;
+        [Tooltip("Uniform random scale range (min to max). Used when Uniform Scale is enabled.")]
+        public Vector2 foliageUniformScaleRange = new Vector2(0.9f, 1.1f);
+        [Tooltip("Random X scale range (min to max). Used when Uniform Scale is disabled.")]
+        public Vector2 foliageScaleXRange = new Vector2(0.9f, 1.1f);
+        [Tooltip("Random Y scale range (min to max). Used when Uniform Scale is disabled.")]
+        public Vector2 foliageScaleYRange = new Vector2(0.9f, 1.1f);
+
+        [Header("Foliage Layer 2 Settings")]
+        [Tooltip("Optional: separate tilemap for a second foliage/decoration layer.")]
+        public Tilemap foliage2Tilemap;
+        [Tooltip("Tiles used as foliage for layer 2.")]
+        public TileBase[] foliage2Tiles;
+        [Tooltip("Optional weights matching foliage2Tiles for weighted random selection.")]
+        public float[] foliage2TileWeights;
+        [Tooltip("Overall chance to place layer-2 foliage on an eligible floor cell when Perlin is disabled.")]
+        [Range(0f, 1f)] public float foliage2Density = 0.07f;
+        [Tooltip("Use Perlin noise to create natural foliage patches for layer 2.")]
+        public bool usePerlinForFoliage2 = true;
+        [Min(0.0001f)] public float foliage2Scale = 9f;
+        public int foliage2SeedOffset = 9002;
+        public Vector2 foliage2Offset;
+        [Range(1, 8)] public int foliage2Octaves = 1;
+        [Range(0f, 1f)] public float foliage2Persistence = 0.5f;
+        [Min(1f)] public float foliage2Lacunarity = 2f;
+        [Tooltip("Normalized threshold on foliage-2 noise (higher = sparser). Only used if Perlin is enabled.")]
+        [Range(0f, 1f)] public float foliage2NoiseThreshold = 0.65f;
+        [Tooltip("Blend amount with deterministic hash-based randomness for layer 2 (0 = pure Perlin, 1 = pure random). Only used if Perlin is enabled.")]
+        [Range(0f, 1f)] public float foliage2HashBlend = 0f;
+        [Tooltip("Avoid placing layer-2 foliage on tiles adjacent to non-floor (near walls/edges).")]
+        public bool avoidEdgesForFoliage2 = true;
+        [Tooltip("Apply a random rotation to layer-2 foliage.")]
+        public bool foliage2RandomRotation = true;
+        [Tooltip("Snap layer-2 foliage rotation to 0/90/180/270.")]
+        public bool foliage2UseRightAngles = true;
+        [Tooltip("Apply a random scale to layer-2 foliage.")]
+        public bool foliage2RandomScale = false;
+        [Tooltip("Use the same random scale on X and Y for layer 2.")]
+        public bool foliage2UseUniformScale = true;
+        public Vector2 foliage2UniformScaleRange = new Vector2(0.9f, 1.1f);
+        public Vector2 foliage2ScaleXRange = new Vector2(0.9f, 1.1f);
+        public Vector2 foliage2ScaleYRange = new Vector2(0.9f, 1.1f);
 
         [Header("Floor Variant Noise")]
         [Tooltip("Use a Perlin noise map to pick floor variants (organic patches). If disabled, falls back to deterministic hashing.")]
@@ -92,6 +167,8 @@ namespace ProcGen
 
         private bool[,] lastFloorMask;
         private float[,] lastVariantNoise;
+        private float[,] lastFoliageNoise;
+        private float[,] lastFoliage2Noise;
 
         private void OnValidate()
         {
@@ -172,6 +249,8 @@ namespace ProcGen
             {
                 if (floorTilemap != null) floorTilemap.ClearAllTiles();
                 if (wallTilemap != null) wallTilemap.ClearAllTiles();
+                if (foliageTilemap != null) foliageTilemap.ClearAllTiles();
+                if (foliage2Tilemap != null) foliage2Tilemap.ClearAllTiles();
             }
 
             Vector3Int origin = new Vector3Int(-width / 2, -height / 2, 0);
@@ -196,6 +275,30 @@ namespace ProcGen
             else
             {
                 lastVariantNoise = null;
+            }
+
+            // Precompute foliage noise if requested
+            if (usePerlinForFoliage)
+            {
+                lastFoliageNoise = NoiseMapGenerator.GeneratePerlinNoiseMap(
+                    width, height, seed + foliageSeedOffset, foliageScale,
+                    foliageOctaves, foliagePersistence, foliageLacunarity, foliageOffset);
+            }
+            else
+            {
+                lastFoliageNoise = null;
+            }
+
+            // Precompute foliage2 noise if requested
+            if (usePerlinForFoliage2)
+            {
+                lastFoliage2Noise = NoiseMapGenerator.GeneratePerlinNoiseMap(
+                    width, height, seed + foliage2SeedOffset, foliage2Scale,
+                    foliage2Octaves, foliage2Persistence, foliage2Lacunarity, foliage2Offset);
+            }
+            else
+            {
+                lastFoliage2Noise = null;
             }
 
             // Paint floor and walls
@@ -250,6 +353,44 @@ namespace ProcGen
                             {
                                 wallTilemap.SetTile(pos, wallTile);
                             }
+                        }
+                    }
+
+                    // Foliage layer
+                    if (foliageTilemap != null)
+                    {
+                        if (isFloor && ShouldPlaceFoliageAt(isFloorMask, x, y))
+                        {
+                            TileBase foliage = GetFoliageTileForCell(x, y);
+                            foliageTilemap.SetTile(pos, foliage);
+                            float angle = GetFoliageRotationDegreesForCell(x, y);
+                            Vector3 scale = GetFoliageScaleForCell(x, y);
+                            Matrix4x4 xfm = Matrix4x4.TRS(Vector3.zero, Quaternion.Euler(0f, 0f, angle), scale);
+                            foliageTilemap.SetTransformMatrix(pos, xfm);
+                        }
+                        else
+                        {
+                            foliageTilemap.SetTile(pos, null);
+                            foliageTilemap.SetTransformMatrix(pos, Matrix4x4.identity);
+                        }
+                    }
+
+                    // Foliage layer 2
+                    if (foliage2Tilemap != null)
+                    {
+                        if (isFloor && ShouldPlaceFoliage2At(isFloorMask, x, y))
+                        {
+                            TileBase foliage = GetFoliage2TileForCell(x, y);
+                            foliage2Tilemap.SetTile(pos, foliage);
+                            float angle = GetFoliage2RotationDegreesForCell(x, y);
+                            Vector3 scale = GetFoliage2ScaleForCell(x, y);
+                            Matrix4x4 xfm = Matrix4x4.TRS(Vector3.zero, Quaternion.Euler(0f, 0f, angle), scale);
+                            foliage2Tilemap.SetTransformMatrix(pos, xfm);
+                        }
+                        else
+                        {
+                            foliage2Tilemap.SetTile(pos, null);
+                            foliage2Tilemap.SetTransformMatrix(pos, Matrix4x4.identity);
                         }
                     }
                 }
@@ -436,6 +577,180 @@ namespace ProcGen
             return false;
         }
 
+        private bool IsNearNonFloor(bool[,] floorMask, int x, int y, bool eightWay)
+        {
+            int width = floorMask.GetLength(0);
+            int height = floorMask.GetLength(1);
+            int[][] dirs4 = new int[][]
+            {
+                new[]{ 1, 0 }, new[]{ -1, 0 }, new[]{ 0, 1 }, new[]{ 0, -1 }
+            };
+            int[][] dirs8 = new int[][]
+            {
+                new[]{ 1, 0 }, new[]{ -1, 0 }, new[]{ 0, 1 }, new[]{ 0, -1 },
+                new[]{ 1, 1 }, new[]{ -1, 1 }, new[]{ 1, -1 }, new[]{ -1, -1 }
+            };
+
+            var dirs = eightWay ? dirs8 : dirs4;
+            for (int i = 0; i < dirs.Length; i++)
+            {
+                int nx = x + dirs[i][0];
+                int ny = y + dirs[i][1];
+                if (nx < 0 || nx >= width || ny < 0 || ny >= height) return true;
+                if (!floorMask[nx, ny]) return true;
+            }
+            return false;
+        }
+
+        private bool ShouldPlaceFoliageAt(bool[,] floorMask, int x, int y)
+        {
+            if (foliageTiles == null || foliageTiles.Length == 0) return false;
+            if (avoidEdgesForFoliage && IsNearNonFloor(floorMask, x, y, true)) return false;
+
+            if (usePerlinForFoliage && lastFoliageNoise != null)
+            {
+                float v = Mathf.Clamp01(lastFoliageNoise[x, y]);
+                if (foliageHashBlend > 0f)
+                {
+                    float hash01 = Hash01(x, y, seed + foliageSeedOffset);
+                    v = Mathf.Lerp(v, hash01, foliageHashBlend);
+                }
+                return v >= foliageNoiseThreshold;
+            }
+
+            float r = Hash01(x, y, seed + foliageSeedOffset);
+            return r < foliageDensity;
+        }
+
+        private TileBase GetFoliageTileForCell(int x, int y)
+        {
+            if (foliageTiles == null || foliageTiles.Length == 0) return null;
+            int count = foliageTiles.Length;
+            // Use a different salt than placement to avoid biasing accepted cells toward low indices
+            const int selectionSalt = 0x5F3759DF; // arbitrary large salt
+            float r = Hash01(x, y, seed + foliageSeedOffset + selectionSalt);
+            int idx = SelectVariantIndexFromValue(r, count, foliageTileWeights);
+            return foliageTiles[idx];
+        }
+
+        private float GetFoliageRotationDegreesForCell(int x, int y)
+        {
+            if (!foliageRandomRotation) return 0f;
+            float r = Hash01(x, y, seed + foliageSeedOffset + 12345);
+            if (foliageUseRightAngles)
+            {
+                int step = Mathf.FloorToInt(r * 4f) % 4;
+                return step * 90f;
+            }
+            return r * 360f;
+        }
+
+        private Vector3 GetFoliageScaleForCell(int x, int y)
+        {
+            if (!foliageRandomScale)
+            {
+                return Vector3.one;
+            }
+
+            if (foliageUseUniformScale)
+            {
+                float r = Hash01(x, y, seed + foliageSeedOffset + 54321);
+                float s = Mathf.Lerp(
+                    Mathf.Min(foliageUniformScaleRange.x, foliageUniformScaleRange.y),
+                    Mathf.Max(foliageUniformScaleRange.x, foliageUniformScaleRange.y),
+                    r);
+                return new Vector3(s, s, 1f);
+            }
+            else
+            {
+                float rx = Hash01(x, y, seed + foliageSeedOffset + 11111);
+                float ry = Hash01(x, y, seed + foliageSeedOffset + 22222);
+                float sx = Mathf.Lerp(
+                    Mathf.Min(foliageScaleXRange.x, foliageScaleXRange.y),
+                    Mathf.Max(foliageScaleXRange.x, foliageScaleXRange.y),
+                    rx);
+                float sy = Mathf.Lerp(
+                    Mathf.Min(foliageScaleYRange.x, foliageScaleYRange.y),
+                    Mathf.Max(foliageScaleYRange.x, foliageScaleYRange.y),
+                    ry);
+                return new Vector3(sx, sy, 1f);
+            }
+        }
+
+        private bool ShouldPlaceFoliage2At(bool[,] floorMask, int x, int y)
+        {
+            if (foliage2Tiles == null || foliage2Tiles.Length == 0) return false;
+            if (avoidEdgesForFoliage2 && IsNearNonFloor(floorMask, x, y, true)) return false;
+
+            if (usePerlinForFoliage2 && lastFoliage2Noise != null)
+            {
+                float v = Mathf.Clamp01(lastFoliage2Noise[x, y]);
+                if (foliage2HashBlend > 0f)
+                {
+                    float hash01 = Hash01(x, y, seed + foliage2SeedOffset);
+                    v = Mathf.Lerp(v, hash01, foliage2HashBlend);
+                }
+                return v >= foliage2NoiseThreshold;
+            }
+
+            float r = Hash01(x, y, seed + foliage2SeedOffset);
+            return r < foliage2Density;
+        }
+
+        private TileBase GetFoliage2TileForCell(int x, int y)
+        {
+            if (foliage2Tiles == null || foliage2Tiles.Length == 0) return null;
+            int count = foliage2Tiles.Length;
+            const int selectionSalt = 0x1F2E3D4C; // different salt for layer 2
+            float r = Hash01(x, y, seed + foliage2SeedOffset + selectionSalt);
+            int idx = SelectVariantIndexFromValue(r, count, foliage2TileWeights);
+            return foliage2Tiles[idx];
+        }
+
+        private float GetFoliage2RotationDegreesForCell(int x, int y)
+        {
+            if (!foliage2RandomRotation) return 0f;
+            float r = Hash01(x, y, seed + foliage2SeedOffset + 33333);
+            if (foliage2UseRightAngles)
+            {
+                int step = Mathf.FloorToInt(r * 4f) % 4;
+                return step * 90f;
+            }
+            return r * 360f;
+        }
+
+        private Vector3 GetFoliage2ScaleForCell(int x, int y)
+        {
+            if (!foliage2RandomScale)
+            {
+                return Vector3.one;
+            }
+
+            if (foliage2UseUniformScale)
+            {
+                float r = Hash01(x, y, seed + foliage2SeedOffset + 44444);
+                float s = Mathf.Lerp(
+                    Mathf.Min(foliage2UniformScaleRange.x, foliage2UniformScaleRange.y),
+                    Mathf.Max(foliage2UniformScaleRange.x, foliage2UniformScaleRange.y),
+                    r);
+                return new Vector3(s, s, 1f);
+            }
+            else
+            {
+                float rx = Hash01(x, y, seed + foliage2SeedOffset + 55555);
+                float ry = Hash01(x, y, seed + foliage2SeedOffset + 66666);
+                float sx = Mathf.Lerp(
+                    Mathf.Min(foliage2ScaleXRange.x, foliage2ScaleXRange.y),
+                    Mathf.Max(foliage2ScaleXRange.x, foliage2ScaleXRange.y),
+                    rx);
+                float sy = Mathf.Lerp(
+                    Mathf.Min(foliage2ScaleYRange.x, foliage2ScaleYRange.y),
+                    Mathf.Max(foliage2ScaleYRange.x, foliage2ScaleYRange.y),
+                    ry);
+                return new Vector3(sx, sy, 1f);
+            }
+        }
+
         private void SpawnPlayerAtBestLocation()
         {
             if (lastFloorMask == null) return;
@@ -456,6 +771,33 @@ namespace ProcGen
             {
                 var instance = GameObject.Instantiate(playerPrefab, worldPos, Quaternion.identity);
                 playerTransform = instance.transform;
+            }
+
+            // Clear foliage around spawn for readability
+            if (foliageTilemap != null && spawnFoliageClearanceRadius > 0)
+            {
+                for (int dy = -spawnFoliageClearanceRadius; dy <= spawnFoliageClearanceRadius; dy++)
+                {
+                    for (int dx = -spawnFoliageClearanceRadius; dx <= spawnFoliageClearanceRadius; dx++)
+                    {
+                        Vector3Int c = new Vector3Int(spawnCell.x + dx, spawnCell.y + dy, 0);
+                        foliageTilemap.SetTile(c, null);
+                        foliageTilemap.SetTransformMatrix(c, Matrix4x4.identity);
+                    }
+                }
+            }
+
+            if (foliage2Tilemap != null && spawnFoliageClearanceRadius > 0)
+            {
+                for (int dy = -spawnFoliageClearanceRadius; dy <= spawnFoliageClearanceRadius; dy++)
+                {
+                    for (int dx = -spawnFoliageClearanceRadius; dx <= spawnFoliageClearanceRadius; dx++)
+                    {
+                        Vector3Int c = new Vector3Int(spawnCell.x + dx, spawnCell.y + dy, 0);
+                        foliage2Tilemap.SetTile(c, null);
+                        foliage2Tilemap.SetTransformMatrix(c, Matrix4x4.identity);
+                    }
+                }
             }
         }
 
