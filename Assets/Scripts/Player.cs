@@ -22,6 +22,7 @@ public class Player : MonoBehaviour
     [Header("Components")]
     [SerializeField] private Rigidbody2D rb;
     [SerializeField] private SpriteRenderer spriteRenderer;
+    [SerializeField] private Collider2D[] playerColliders; // Optional override; if null, auto-populate
     
     // Private variables
     private Vector2 moveInput;
@@ -35,6 +36,7 @@ public class Player : MonoBehaviour
     private float dashTimer;
     private float dashCooldownTimer;
     private Vector2 dashDirection;
+    private bool[] originalColliderIsTriggerStates;
     
     // Transient input
     private bool ownerDashPressedThisFrame;
@@ -64,6 +66,7 @@ public class Player : MonoBehaviour
             
         // Setup Rigidbody2D for top-down movement
         SetupRigidbody();
+        SetupColliders();
         
         // Setup input system
         SetupInput();
@@ -92,6 +95,23 @@ public class Player : MonoBehaviour
             // Setup input actions
             moveAction = playerInput.actions["Move"];
             jumpAction = playerInput.actions["Jump"];
+        }
+    }
+
+    void SetupColliders()
+    {
+        if (playerColliders == null || playerColliders.Length == 0)
+        {
+            playerColliders = GetComponents<Collider2D>();
+        }
+
+        if (playerColliders != null && playerColliders.Length > 0)
+        {
+            originalColliderIsTriggerStates = new bool[playerColliders.Length];
+            for (int i = 0; i < playerColliders.Length; i++)
+            {
+                originalColliderIsTriggerStates[i] = playerColliders[i] != null && playerColliders[i].isTrigger;
+            }
         }
     }
     
@@ -224,6 +244,9 @@ public class Player : MonoBehaviour
         dashDirection = worldMove.sqrMagnitude > 0.0001f ? worldMove.normalized : Vector2.right;
         
         Debug.Log("Dash started! Direction: " + dashDirection);
+
+        // Allow phasing through walls during dash
+        SetDashPhasing(true);
     }
     
     void EndDash()
@@ -232,6 +255,36 @@ public class Player : MonoBehaviour
         dashCooldownTimer = dashCooldown;
         
         Debug.Log("Dash ended!");
+
+        // Restore normal collisions after dash
+        SetDashPhasing(false);
+    }
+
+    void SetDashPhasing(bool enable)
+    {
+        if (playerColliders == null || playerColliders.Length == 0)
+            return;
+
+        if (enable)
+        {
+            for (int i = 0; i < playerColliders.Length; i++)
+            {
+                var col = playerColliders[i];
+                if (col == null) continue;
+                col.isTrigger = true;
+            }
+        }
+        else
+        {
+            // Restore original trigger states
+            for (int i = 0; i < playerColliders.Length; i++)
+            {
+                var col = playerColliders[i];
+                if (col == null) continue;
+                bool restoreTrigger = originalColliderIsTriggerStates != null && i < originalColliderIsTriggerStates.Length && originalColliderIsTriggerStates[i];
+                col.isTrigger = restoreTrigger;
+            }
+        }
     }
     
     void UpdateDashTimers()
