@@ -42,7 +42,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float currentSeverity = 0f;
 
     [Header("Post FX Maximums (at max severity)")]
-    [SerializeField, Range(-100f, 100f)] private float maxSaturationDelta = -60f; // towards monochrome
+    [SerializeField, Range(-100f, 100f)] private float maxSaturationDelta = 60f; // positive adds saturation
     [SerializeField, Range(-100f, 100f)] private float maxContrastDelta = 40f;
     [SerializeField, Range(-2f, 2f)] private float maxPostExposure = 0.4f;
     [SerializeField, Range(-1f, 1f)] private float maxLensDistortion = -0.5f; // barrel distortion
@@ -380,7 +380,9 @@ public class GameManager : MonoBehaviour
             _ppColorAdjustments.hueShift.value = hueDegrees;
 
             _ppColorAdjustments.saturation.overrideState = true;
-            _ppColorAdjustments.saturation.value = Mathf.Lerp(_baseSaturation, _baseSaturation + maxSaturationDelta, t);
+            // Ensure we only increase saturation relative to the authored baseline
+            float targetSatDelta = Mathf.Max(0f, maxSaturationDelta);
+            _ppColorAdjustments.saturation.value = Mathf.Lerp(_baseSaturation, _baseSaturation + targetSatDelta, t);
 
             _ppColorAdjustments.contrast.overrideState = true;
             _ppColorAdjustments.contrast.value = Mathf.Lerp(_baseContrast, _baseContrast + maxContrastDelta, t);
