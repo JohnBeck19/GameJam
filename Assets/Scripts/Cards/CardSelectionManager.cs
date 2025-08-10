@@ -6,6 +6,7 @@ public class CardSelectionManager : MonoBehaviour
     public List<Card> allCards;
     public Transform cardParent;
     public GameObject[] cardUIPrefab;
+    public Player player;
 
     public void ShowCards()
     {
@@ -27,7 +28,7 @@ public class CardSelectionManager : MonoBehaviour
 
     public void ChosenCard(Card card)
     {
-        card.UpgradePlayerStates();
+        card.UpgradePlayerStates(player);
     }
    
 }

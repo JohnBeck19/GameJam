@@ -7,21 +7,32 @@ public class Card : ScriptableObject
     public UpgradeType type;
     public Sprite icon;
     [TextArea] public string description;
+    public GameObject prefb;
     public int value; //how much to increase or level up
+    public int maxLvl;
     public enum UpgradeType { WEAPON, ARMOR, ATTACKSPEED,HEALTHBOOST }
 
-    public void UpgradePlayerStates()
+    public void UpgradePlayerStates(Player player)
     {
         //Upgrade player stats when player done
         switch(type)
         {
             case UpgradeType.ARMOR:
-                Debug.Log("Ammor");
+                player.PlusDmgReduction(value);
                 break;
             case UpgradeType.WEAPON:
-                Debug.Log("wepon");
+                player.NewWeapon(itemName);
                 break;
+            case UpgradeType.HEALTHBOOST:
+                
+                break;
+            case UpgradeType.ATTACKSPEED:
+
+                break;
+
         }
     }
+
+    
 
 }

@@ -1,11 +1,13 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System.Collections.Generic;
 
 public class Player : MonoBehaviour
 {
     [Header("Health")]
-    [SerializeField] private float maxHealth = 5f;
+    [SerializeField] private float maxHealth { set; get; } = 5f;
     [SerializeField] private float currentHealth = 5f;
+    private float dmgReduction = 1f;
     [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float acceleration = 10f;
@@ -41,7 +43,11 @@ public class Player : MonoBehaviour
     private PlayerInput playerInput;
     private InputAction moveAction;
     private InputAction jumpAction;
+
+
+    //Items
     
+
     void Awake()
     {
         // Initialize health
@@ -327,4 +333,19 @@ public class Player : MonoBehaviour
     }
 
 
+    //called when player gets a new weapon
+    public void NewWeapon(string weaponName)
+    {
+
+    }
+
+    public void TakeDmg(float dmg)
+    {
+        currentHealth -= dmg * dmgReduction;
+    }
+
+    public void PlusDmgReduction(float reduction)
+    {
+        dmgReduction -= reduction;
+    }
 }
