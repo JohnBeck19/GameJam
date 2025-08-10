@@ -48,7 +48,9 @@ public class Player : MonoBehaviour
 
 
     //Items
-    
+    [SerializeField] Animator animator;
+
+
 
     void Awake()
     {
@@ -129,6 +131,8 @@ public class Player : MonoBehaviour
         }
 
         UpdateDashTimers();
+        animator.SetFloat("Speed", rb.linearVelocity.magnitude);
+        Debug.Log(rb.linearVelocity.magnitude);
     }
 
     
@@ -137,7 +141,7 @@ public class Player : MonoBehaviour
         // Local-only: apply movement and rotation based on current input
         isMoving = moveInput.magnitude > 0.1f;
         HandleMovement();
-        HandleRotation();
+        HandleRotation();      
     }
     
     void HandleInput()

@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 5693636753440810133}
   - component: {fileID: 6317304486396458702}
   - component: {fileID: 7536191101927832171}
+  - component: {fileID: 2937866454612308852}
   m_Layer: 3
   m_Name: Player 1
   m_TagString: Untagged
@@ -60,6 +61,7 @@ MonoBehaviour:
   rb: {fileID: 6317304486396458702}
   spriteRenderer: {fileID: 0}
   playerColliders: []
+  animator: {fileID: 6708787725384271052}
 --- !u!114 &5693636753440810133
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -154,6 +156,28 @@ CapsuleCollider2D:
   m_Offset: {x: 0, y: 0}
   m_Size: {x: 1, y: 2}
   m_Direction: 0
+--- !u!95 &2937866454612308852
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2631157565860757846}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 3085501343fbc7c4295e2c2d29b3eceb, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &7931741704193341519
 GameObject:
   m_ObjectHideFlags: 0
