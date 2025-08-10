@@ -132,7 +132,7 @@ public class Player : MonoBehaviour
 
         UpdateDashTimers();
         animator.SetFloat("Speed", rb.linearVelocity.magnitude);
-        Debug.Log(rb.linearVelocity.magnitude);
+        
     }
 
     
