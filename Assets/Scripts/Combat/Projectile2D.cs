@@ -34,13 +34,59 @@ namespace GameJam.Combat
         // Keep a persistent reference to the shooter to support return-to-shooter logic when detached
         private Transform shooterWorldRef;
 
+        [Header("Debug")]
+        [Tooltip("If true, logs collisions for projectiles fired by the Player.")]
+        [SerializeField] private bool debugPlayerBulletCollisions = true;
+
+        // Cached components
+        private Rigidbody2D _rb2d;
+        private Collider2D _collider2d;
+
         public void Initialize(Transform shooter, Vector3 spawnPosition, Vector2 initialDirection, float projectileSpeed, ProjectileTrajectory trajectoryAsset, ProjectileAttachmentMode attachmentMode)
         {
+            // Ensure required physics components exist for trigger callbacks
+            _collider2d = GetComponent<Collider2D>();
+            if (_collider2d == null)
+            {
+                _collider2d = gameObject.AddComponent<CircleCollider2D>();
+                ((CircleCollider2D)_collider2d).radius = 0.1f;
+            }
+            _collider2d.isTrigger = true;
+
+            _rb2d = GetComponent<Rigidbody2D>();
+            if (_rb2d == null)
+            {
+                _rb2d = gameObject.AddComponent<Rigidbody2D>();
+            }
+            _rb2d.bodyType = RigidbodyType2D.Kinematic;
+            _rb2d.gravityScale = 0f;
+            _rb2d.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+
             // Pull collision masks from shooter if available
             if (shooter != null && shooter.TryGetComponent<IProjectileCollisionProvider>(out var provider))
             {
                 playerMask = provider.PlayerCollisionMask;
                 environmentMask = provider.EnvironmentCollisionMask;
+            }
+            else
+            {
+                playerMask = 0;
+                environmentMask = 0;
+            }
+            // Sensible defaults if no target mask provided
+            if (playerMask == 0)
+            {
+                bool shooterIsPlayer = shooter != null && shooter.GetComponent<Player>() != null;
+                int fallback = LayerMask.NameToLayer(shooterIsPlayer ? "Enemy" : "Player");
+                if (fallback < 0)
+                {
+                    // Try plural form too
+                    fallback = LayerMask.NameToLayer(shooterIsPlayer ? "Enemies" : "Players");
+                }
+                if (fallback >= 0)
+                {
+                    playerMask = 1 << fallback;
+                }
             }
             // Pull damage percent if available
             if (shooter != null && shooter.TryGetComponent<IProjectileDamageProvider>(out var dmg))
@@ -164,22 +210,92 @@ namespace GameJam.Combat
         private void OnTriggerEnter2D(Collider2D other)
         {
             int otherLayer = other.gameObject.layer;
+            bool shooterIsPlayer = shooterWorldRef != null && shooterWorldRef.GetComponent<Player>() != null;
 
             // Compute damage value
             float totalDamage = baseDamage * (damagePercent / 100f);
 
             if (destroyOnEnvironmentHit && environmentMask != 0 && (environmentMask.value & (1 << otherLayer)) != 0)
             {
+                if (shooterIsPlayer && debugPlayerBulletCollisions)
+                {
+                    Debug.Log($"[Projectile] Player bullet hit environment '{other.name}' on layer '{LayerMask.LayerToName(otherLayer)}'. Destroying projectile.");
+                }
                 // TODO: optionally notify environment of impact with damage if desired
                 Destroy(gameObject);
                 return;
             }
 
-            if (destroyOnPlayerHit && playerMask != 0 && (playerMask.value & (1 << otherLayer)) != 0)
+            // Target hit handling using the provider's target mask (named playerMask here for backward-compat)
+            bool hitInTargetMask = playerMask != 0 && (playerMask.value & (1 << otherLayer)) != 0;
+            // Additional safety: if shooter is player and collided layer equals Enemy/Enemies, treat as in mask
+            if (!hitInTargetMask && shooterIsPlayer)
             {
-                Player.Instance.TakeDmg(totalDamage);
-                Destroy(gameObject);
-                return;
+                int enemyLayer = LayerMask.NameToLayer("Enemy");
+                int enemiesLayer = LayerMask.NameToLayer("Enemies");
+                if ((enemyLayer >= 0 && otherLayer == enemyLayer) || (enemiesLayer >= 0 && otherLayer == enemiesLayer))
+                {
+                    hitInTargetMask = true;
+                }
+            }
+            if (shooterIsPlayer && debugPlayerBulletCollisions)
+            {
+                Debug.Log($"[Projectile] Player bullet collided with '{other.name}' (layer '{LayerMask.LayerToName(otherLayer)}'), inTargetMask={hitInTargetMask}.");
+            }
+            if (hitInTargetMask)
+            {
+                if (shooterIsPlayer)
+                {
+                    // Player projectile -> damage enemies
+                    var enemyHealth = other.GetComponentInParent<GameJam.Enemies.EnemyHealth>();
+                    if (enemyHealth != null)
+                    {
+                        if (debugPlayerBulletCollisions)
+                        {
+                            Debug.Log($"[Projectile] Damaging EnemyHealth '{enemyHealth.gameObject.name}' for {totalDamage:F1}.");
+                        }
+                        enemyHealth.TakeDamage(totalDamage);
+                        if (destroyOnPlayerHit)
+                            Destroy(gameObject);
+                        return;
+                    }
+                    var enemy = other.GetComponentInParent<GameJam.Enemies.EnemyAgent2D>();
+                    if (enemy != null)
+                    {
+                        if (debugPlayerBulletCollisions)
+                        {
+                            Debug.Log($"[Projectile] No EnemyHealth found; destroying enemy '{enemy.gameObject.name}'.");
+                        }
+                        Destroy(enemy.gameObject);
+                        if (destroyOnPlayerHit)
+                            Destroy(gameObject);
+                        return;
+                    }
+                    if (debugPlayerBulletCollisions)
+                    {
+                        Debug.Log($"[Projectile] Hit target in mask but found no enemy components. No action taken.");
+                    }
+                }
+                else
+                {
+                    // Non-player projectile -> attempt to damage player
+                    if (Player.Instance != null)
+                    {
+                        // Ensure we actually hit the player hierarchy
+                        var hitPlayer = other.GetComponentInParent<Player>();
+                        if (hitPlayer != null)
+                        {
+                            Player.Instance.TakeDmg(totalDamage);
+                            if (destroyOnPlayerHit)
+                                Destroy(gameObject);
+                            return;
+                        }
+                    }
+                }
+            }
+            else if (shooterIsPlayer && debugPlayerBulletCollisions)
+            {
+                Debug.Log($"[Projectile] Player bullet collision ignored: '{other.name}' not in target mask.");
             }
         }
     }

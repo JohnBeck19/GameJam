@@ -43,6 +43,12 @@ public class GameManager : MonoBehaviour
     [Header("UI")] 
     [Tooltip("Optional player health slider. If assigned, it will be updated to reflect the player's current health each frame.")]
     [SerializeField] private Slider playerHealthSlider;
+    [Tooltip("If true and the slider reference is missing after a scene load, the manager will try to find it automatically.")]
+    [SerializeField] private bool autoFindPlayerHealthSlider = true;
+    [Tooltip("Optional Tag used to find the player health slider GameObject.")]
+    [SerializeField] private string playerHealthSliderTag = "PlayerHealthUI";
+    [Tooltip("Optional GameObject name used to find the player health slider if Tag search fails.")]
+    [SerializeField] private string playerHealthSliderName = "PlayerHealthSlider";
 
     [Header("Escalation (per exit)")]
     [Tooltip("How much the post-processing severity increases every time the player leaves bounds (scene reload).")]
@@ -84,6 +90,11 @@ public class GameManager : MonoBehaviour
 
     public bool HasExitedOnce => _hasExitedOnce;
     public int ExitCount => _exitCount;
+    public float CurrentSeverity => currentSeverity;
+    public float SeverityMax => severityMax;
+    public float Severity01 => severityMax > 0f ? Mathf.Clamp01(currentSeverity / severityMax) : 0f;
+    public float GreenCurve01 => Mathf.Clamp01(greenIntensityCurve != null ? greenIntensityCurve.Evaluate(_greenCurveTime01) : _greenCurveTime01);
+    public float VisualSeverity01 => Mathf.Max(Severity01, GreenCurve01);
 
     private VolumeProfile _activePostProfile;
     private ColorAdjustments _ppColorAdjustments;
@@ -155,6 +166,8 @@ public class GameManager : MonoBehaviour
 
     private void InitializeSceneDependencies()
     {
+        // Re-resolve UI references that are destroyed/recreated per scene
+        ResolvePlayerHealthSlider();
         // Player
         EnsureScenePlayer();
         _playerTransform = _currentPlayer != null ? _currentPlayer.transform : FindPlayerTransform();
@@ -306,7 +319,14 @@ public class GameManager : MonoBehaviour
     private void UpdatePlayerHealthUI(bool force = false)
     {
         if (playerHealthSlider == null)
-            return;
+        {
+            if (autoFindPlayerHealthSlider)
+            {
+                ResolvePlayerHealthSlider();
+            }
+            if (playerHealthSlider == null)
+                return;
+        }
 
         // Try to find player if missing
         if (_playerTransform == null)
@@ -330,6 +350,41 @@ public class GameManager : MonoBehaviour
         playerHealthSlider.minValue = 0f;
         playerHealthSlider.maxValue = max;
         playerHealthSlider.value = Mathf.Clamp(player.CurrentHealth, 0f, max);
+    }
+
+    private void ResolvePlayerHealthSlider()
+    {
+        if (!autoFindPlayerHealthSlider)
+            return;
+
+        // Try tag
+        if (!string.IsNullOrEmpty(playerHealthSliderTag))
+        {
+            var go = GameObject.FindGameObjectWithTag(playerHealthSliderTag);
+            if (go != null && go.TryGetComponent<Slider>(out var s1))
+            {
+                playerHealthSlider = s1;
+                return;
+            }
+        }
+
+        // Try name
+        if (!string.IsNullOrEmpty(playerHealthSliderName))
+        {
+            var goByName = GameObject.Find(playerHealthSliderName);
+            if (goByName != null && goByName.TryGetComponent<Slider>(out var s2))
+            {
+                playerHealthSlider = s2;
+                return;
+            }
+        }
+
+        // Fallback: first active Slider in scene
+        var anySlider = FindFirstObjectByType<Slider>(FindObjectsInactive.Exclude);
+        if (anySlider != null)
+        {
+            playerHealthSlider = anySlider;
+        }
     }
 
     public void OnPlayerDied()

@@ -6,6 +6,8 @@ TagManager:
   tags:
   - groundTilemap
   - SpawnRoom
+  - PlayerHealthUI
+  - Enemy
   layers:
   - Default
   - TransparentFX

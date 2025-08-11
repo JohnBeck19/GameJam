@@ -1,5 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 namespace GameJam.Combat
 {
@@ -17,6 +20,16 @@ namespace GameJam.Combat
         [SerializeField] private Transform firePoint;
         [SerializeField] private bool autoFire = true;
         [SerializeField] private float fireIntervalSeconds = 0.25f;
+        [Tooltip("Multiplier applied to fire rate. 1 = base. 2 = twice as fast (half the interval). 0.5 = half as fast.")]
+        [SerializeField] private float fireRateMultiplier = 1f;
+
+        [Header("Input")]
+        [Tooltip("If true, requires input to fire. Holding input continues to fire at interval; clicking fires immediately once.")]
+        [SerializeField] private bool requireInputToFire = false;
+        [Tooltip("New Input System action name to read for firing (WasPressed/IsPressed).")]
+        [SerializeField] private string fireActionName = "Fire";
+        [Tooltip("Legacy fallback input when New Input System isn't present.")]
+        [SerializeField] private KeyCode legacyFireKey = KeyCode.Mouse0;
 
         [Header("Persistent Cleanup")]
         [SerializeField] private bool autoDespawnPersistentOnDisable = true;
@@ -30,6 +43,12 @@ namespace GameJam.Combat
         [SerializeField] private LayerMask environmentCollisionMask;
 
         private float timer;
+        private PlayerInput playerInput;
+#if ENABLE_INPUT_SYSTEM
+        private InputAction fireAction;
+#endif
+        // Cooldown-based gating to enforce max fire rate regardless of input spam
+        private float cooldownRemaining;
         private readonly List<Projectile2D> persistentSpawned = new List<Projectile2D>();
 
         public float DamagePercent => damagePercent;
@@ -43,6 +62,8 @@ namespace GameJam.Combat
         private void OnEnable()
         {
             SpawnPersistent();
+            SetupInput();
+            cooldownRemaining = 0f;
         }
 
         private void OnDisable()
@@ -55,17 +76,34 @@ namespace GameJam.Combat
 
         private void Update()
         {
-            if (!autoFire)
-                return;
-
             if (activePatterns == null || activePatterns.Length == 0)
                 return; // No active patterns => no shooting
 
-            timer += Time.deltaTime;
-            if (timer >= Mathf.Max(0.01f, fireIntervalSeconds))
+            float dt = Time.deltaTime;
+            if (cooldownRemaining > 0f)
             {
-                timer = 0f;
+                cooldownRemaining -= dt;
+                if (cooldownRemaining < 0f) cooldownRemaining = 0f;
+            }
+
+            if (requireInputToFire)
+            {
+                bool wantsToFire = GetFirePressedThisFrame() || GetFireHeld();
+                if (wantsToFire && cooldownRemaining <= 0f)
+                {
+                    FireActiveOnce();
+                    cooldownRemaining = GetEffectiveInterval();
+                }
+                return;
+            }
+
+            if (!autoFire)
+                return;
+
+            if (cooldownRemaining <= 0f)
+            {
                 FireActiveOnce();
+                cooldownRemaining = GetEffectiveInterval();
             }
         }
 
@@ -133,5 +171,92 @@ namespace GameJam.Combat
         // IProjectileCollisionProvider
         public LayerMask PlayerCollisionMask => playerCollisionMask;
         public LayerMask EnvironmentCollisionMask => environmentCollisionMask;
+
+        // Runtime configuration helpers
+        public void SetInterval(float seconds)
+        {
+            fireIntervalSeconds = Mathf.Max(0.01f, seconds);
+        }
+
+        public void SetShotsPerSecond(float shotsPerSecond)
+        {
+            float sps = Mathf.Max(0.01f, shotsPerSecond);
+            fireIntervalSeconds = 1f / sps;
+        }
+
+        public void SetFirePoint(Transform point)
+        {
+            firePoint = point;
+        }
+
+        public void SetAutofire(bool enabled)
+        {
+            autoFire = enabled;
+        }
+
+        public void SetRequireInputToFire(bool required)
+        {
+            requireInputToFire = required;
+        }
+
+        public void SetFireRateMultiplier(float multiplier)
+        {
+            fireRateMultiplier = Mathf.Max(0.01f, multiplier);
+        }
+
+        public float GetEffectiveInterval()
+        {
+            float baseInterval = Mathf.Max(0.01f, fireIntervalSeconds);
+            float mult = Mathf.Max(0.01f, fireRateMultiplier);
+            return baseInterval / mult;
+        }
+
+        private void SetupInput()
+        {
+#if ENABLE_INPUT_SYSTEM
+            if (playerInput == null)
+            {
+                playerInput = GetComponent<PlayerInput>();
+                if (playerInput == null)
+                {
+                    playerInput = GetComponentInParent<PlayerInput>();
+                }
+            }
+            if (playerInput != null && !string.IsNullOrEmpty(fireActionName))
+            {
+                fireAction = playerInput.actions != null ? playerInput.actions[fireActionName] : null;
+            }
+#endif
+        }
+
+        private bool GetFirePressedThisFrame()
+        {
+#if ENABLE_INPUT_SYSTEM
+            if (fireAction == null && playerInput != null && playerInput.actions != null && !string.IsNullOrEmpty(fireActionName))
+            {
+                fireAction = playerInput.actions[fireActionName];
+            }
+            if (fireAction != null)
+            {
+                return fireAction.WasPressedThisFrame();
+            }
+#endif
+            return Input.GetKeyDown(legacyFireKey) || Input.GetMouseButtonDown(0);
+        }
+
+        private bool GetFireHeld()
+        {
+#if ENABLE_INPUT_SYSTEM
+            if (fireAction == null && playerInput != null && playerInput.actions != null && !string.IsNullOrEmpty(fireActionName))
+            {
+                fireAction = playerInput.actions[fireActionName];
+            }
+            if (fireAction != null)
+            {
+                return fireAction.IsPressed();
+            }
+#endif
+            return Input.GetKey(legacyFireKey) || Input.GetMouseButton(0);
+        }
     }
 } 

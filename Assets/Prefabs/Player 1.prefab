@@ -50,7 +50,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3f9f23ce85c34fb4f82f762d38e4ecb1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player
-  currentHealth: 5
+  currentHealth: 100
   moveSpeed: 10
   acceleration: 15
   deceleration: 15
@@ -59,9 +59,47 @@ MonoBehaviour:
   dashDuration: 0.2
   dashCooldown: 0.5
   rb: {fileID: 6317304486396458702}
-  spriteRenderer: {fileID: 0}
-  playerColliders: []
+  spriteRenderer: {fileID: 7985939007920047778}
+  playerColliders:
+  - {fileID: 7536191101927832171}
   animator: {fileID: 6708787725384271052}
+  useSeverityTint: 0
+  severityTintGradient:
+    serializedVersion: 2
+    key0: {r: 1, g: 1, b: 1, a: 1}
+    key1: {r: 1, g: 1, b: 1, a: 1}
+    key2: {r: 0, g: 0, b: 0, a: 0}
+    key3: {r: 0, g: 0, b: 0, a: 0}
+    key4: {r: 0, g: 0, b: 0, a: 0}
+    key5: {r: 0, g: 0, b: 0, a: 0}
+    key6: {r: 0, g: 0, b: 0, a: 0}
+    key7: {r: 0, g: 0, b: 0, a: 0}
+    ctime0: 0
+    ctime1: 65535
+    ctime2: 0
+    ctime3: 0
+    ctime4: 0
+    ctime5: 0
+    ctime6: 0
+    ctime7: 0
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: -1
+    m_NumColorKeys: 2
+    m_NumAlphaKeys: 2
+  useSeveritySpriteSwap: 1
+  severitySprites:
+  - {fileID: -7783813424544337531, guid: 370e279544506234d836036c716be3cd, type: 3}
+  - {fileID: -1895297755516806372, guid: 4bc38b72ac9c0d74e81a599879ff3dcd, type: 3}
+  - {fileID: -4375605630612109591, guid: 3dd0c16bf72202c4fbec83a3905c1e63, type: 3}
+  - {fileID: 69759617606037885, guid: 465948153a8895b488140c8539294f70, type: 3}
 --- !u!114 &5693636753440810133
 MonoBehaviour:
   m_ObjectHideFlags: 0
