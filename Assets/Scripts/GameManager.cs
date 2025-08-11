@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -87,6 +88,8 @@ public class GameManager : MonoBehaviour
     private bool _reloadScheduled;
     private bool _hasExitedOnce;
     private int _exitCount;
+    private bool _isPaused;
+    private float _storedTimeScale = 1f;
 
     public bool HasExitedOnce => _hasExitedOnce;
     public int ExitCount => _exitCount;
@@ -100,6 +103,9 @@ public class GameManager : MonoBehaviour
     public float Severity01 => severityMax > 0f ? Mathf.Clamp01(currentSeverity / severityMax) : 0f;
     public float GreenCurve01 => Mathf.Clamp01(greenIntensityCurve != null ? greenIntensityCurve.Evaluate(_greenCurveTime01) : _greenCurveTime01);
     public float VisualSeverity01 => Mathf.Max(Severity01, GreenCurve01);
+
+    public bool IsPaused => _isPaused;
+    public event Action<bool> OnPauseChanged; // true = paused, false = resumed
 
     private VolumeProfile _activePostProfile;
     private ColorAdjustments _ppColorAdjustments;
@@ -176,6 +182,30 @@ public class GameManager : MonoBehaviour
         inspectorVisualSeverity01 = VisualSeverity01;
         int levels = 4; // matches default Player animator levels; purely for debug display
         inspectorSeverityLevel = Mathf.Clamp(Mathf.FloorToInt(VisualSeverity01 * (levels - 1 + 0.0001f)), 0, levels - 1);
+    }
+
+    public void PauseGame()
+    {
+        if (_isPaused)
+            return;
+        _storedTimeScale = Time.timeScale <= 0f ? 1f : Time.timeScale;
+        Time.timeScale = 0f;
+        _isPaused = true;
+        OnPauseChanged?.Invoke(true);
+    }
+
+    public void ResumeGame()
+    {
+        if (!_isPaused)
+            return;
+        Time.timeScale = _storedTimeScale <= 0f ? 1f : _storedTimeScale;
+        _isPaused = false;
+        OnPauseChanged?.Invoke(false);
+    }
+
+    public void TogglePause()
+    {
+        if (_isPaused) ResumeGame(); else PauseGame();
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -427,6 +457,11 @@ public class GameManager : MonoBehaviour
         _greenCurveTime01 = 0f;
         _reloadScheduled = false;
         _cachedPostFxBaselines = false;
+
+        // Ensure game is unpaused for a new run
+        _isPaused = false;
+        _storedTimeScale = 1f;
+        if (Time.timeScale <= 0f) Time.timeScale = 1f;
 
         // Restore post-processing to authored defaults since the Volume persists on this manager
         ResetPostProcessingToBaselines();

@@ -285,8 +285,6 @@ public class TutorialManager : MonoBehaviour
         _prevTimeScale = Time.timeScale;
         _timeScaleCaptured = true;
         Time.timeScale = 0f;
-        // Optional: pause audio if needed
-        // AudioListener.pause = true;
     }
 
     private void ResumeIfPaused()
