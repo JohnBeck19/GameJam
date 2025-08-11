@@ -356,6 +356,10 @@ public class Player : MonoBehaviour
         return moveInput.normalized;
     }
 
+    // --- Health accessors for UI ---
+    public float CurrentHealth => currentHealth;
+    public float MaxHealth => maxHealth;
+
     // --- Cursor/Facing helpers ---
     void UpdateFacingDirection()
     {

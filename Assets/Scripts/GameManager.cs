@@ -4,6 +4,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.Tilemaps;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
 {
@@ -38,6 +39,10 @@ public class GameManager : MonoBehaviour
     [Header("Post Processing")] 
     [Tooltip("Optional. If not set, the manager will automatically pick the highest-priority global Volume in the scene.")]
     [SerializeField] private Volume postProcessVolume;
+
+    [Header("UI")] 
+    [Tooltip("Optional player health slider. If assigned, it will be updated to reflect the player's current health each frame.")]
+    [SerializeField] private Slider playerHealthSlider;
 
     [Header("Escalation (per exit)")]
     [Tooltip("How much the post-processing severity increases every time the player leaves bounds (scene reload).")]
@@ -137,6 +142,9 @@ public class GameManager : MonoBehaviour
         // Keep watching bounds
         TryComputeBoundsIfNeeded();
         CheckPlayerOutOfBounds();
+
+        // Update UI
+        UpdatePlayerHealthUI();
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -170,6 +178,9 @@ public class GameManager : MonoBehaviour
         {
             ApplyPostProcessing();
         }
+
+        // Refresh UI with current scene's player
+        UpdatePlayerHealthUI(force: true);
     }
 
     private Transform FindPlayerTransform()
@@ -290,6 +301,35 @@ public class GameManager : MonoBehaviour
         var scene = SceneManager.GetActiveScene();
         SceneManager.LoadScene(scene.name);
         // Note: OnSceneLoaded will reinitialize references and reapply current hue state
+    }
+
+    private void UpdatePlayerHealthUI(bool force = false)
+    {
+        if (playerHealthSlider == null)
+            return;
+
+        // Try to find player if missing
+        if (_playerTransform == null)
+        {
+            _playerTransform = FindPlayerTransform();
+        }
+
+        Player player = _playerTransform != null ? _playerTransform.GetComponent<Player>() : null;
+        if (player == null)
+        {
+            playerHealthSlider.gameObject.SetActive(false);
+            return;
+        }
+
+        if (!playerHealthSlider.gameObject.activeSelf)
+        {
+            playerHealthSlider.gameObject.SetActive(true);
+        }
+
+        float max = Mathf.Max(1f, player.MaxHealth);
+        playerHealthSlider.minValue = 0f;
+        playerHealthSlider.maxValue = max;
+        playerHealthSlider.value = Mathf.Clamp(player.CurrentHealth, 0f, max);
     }
 
     public void OnPlayerDied()
