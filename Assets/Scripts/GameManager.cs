@@ -92,6 +92,11 @@ public class GameManager : MonoBehaviour
     public int ExitCount => _exitCount;
     public float CurrentSeverity => currentSeverity;
     public float SeverityMax => severityMax;
+    [Header("Debug/Inspector")] 
+    [ReadOnly] [SerializeField] private float inspectorSeverity01;
+    [ReadOnly] [SerializeField] private int inspectorSeverityLevel;
+    [ReadOnly] [SerializeField] private float inspectorGreenCurve01;
+    [ReadOnly] [SerializeField] private float inspectorVisualSeverity01;
     public float Severity01 => severityMax > 0f ? Mathf.Clamp01(currentSeverity / severityMax) : 0f;
     public float GreenCurve01 => Mathf.Clamp01(greenIntensityCurve != null ? greenIntensityCurve.Evaluate(_greenCurveTime01) : _greenCurveTime01);
     public float VisualSeverity01 => Mathf.Max(Severity01, GreenCurve01);
@@ -109,6 +114,14 @@ public class GameManager : MonoBehaviour
     private float _basePostExposure;
     private float _baseLensDistortion;
     private float _baseGreenOutGreenIn;
+    // Baseline override-state flags and additional values
+    private bool _baseCAHueShiftOverride;
+    private bool _baseCASaturationOverride;
+    private bool _baseCAContrastOverride;
+    private bool _baseCAPostExposureOverride;
+    private bool _baseLensDistortionOverride;
+    private bool _baseGreenOverride;
+    private float _baseHueShiftDegrees;
 
     private void Awake()
     {
@@ -156,6 +169,13 @@ public class GameManager : MonoBehaviour
 
         // Update UI
         UpdatePlayerHealthUI();
+
+        // Update inspector debug values
+        inspectorSeverity01 = Severity01;
+        inspectorGreenCurve01 = GreenCurve01;
+        inspectorVisualSeverity01 = VisualSeverity01;
+        int levels = 4; // matches default Player animator levels; purely for debug display
+        inspectorSeverityLevel = Mathf.Clamp(Mathf.FloorToInt(VisualSeverity01 * (levels - 1 + 0.0001f)), 0, levels - 1);
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -408,6 +428,9 @@ public class GameManager : MonoBehaviour
         _reloadScheduled = false;
         _cachedPostFxBaselines = false;
 
+        // Restore post-processing to authored defaults since the Volume persists on this manager
+        ResetPostProcessingToBaselines();
+
         // Reset player runtime state if we are keeping it around
         if (_currentPlayer != null)
         {
@@ -511,22 +534,56 @@ public class GameManager : MonoBehaviour
         _cachedPostFxBaselines = false;
         if (_ppColorAdjustments != null)
         {
+            _baseCAHueShiftOverride = _ppColorAdjustments.hueShift.overrideState;
+            _baseHueShiftDegrees = _ppColorAdjustments.hueShift.value;
             _baseSaturation = _ppColorAdjustments.saturation.value;
+            _baseCASaturationOverride = _ppColorAdjustments.saturation.overrideState;
             _baseContrast = _ppColorAdjustments.contrast.value;
+            _baseCAContrastOverride = _ppColorAdjustments.contrast.overrideState;
             _basePostExposure = _ppColorAdjustments.postExposure.value;
+            _baseCAPostExposureOverride = _ppColorAdjustments.postExposure.overrideState;
             _cachedPostFxBaselines = true;
         }
         if (_ppLensDistortion != null)
         {
             _baseLensDistortion = _ppLensDistortion.intensity.value;
+            _baseLensDistortionOverride = _ppLensDistortion.intensity.overrideState;
             _cachedPostFxBaselines = true;
         }
         if (_ppChannelMixer != null)
         {
             _baseGreenOutGreenIn = _ppChannelMixer.greenOutGreenIn.value;
+            _baseGreenOverride = _ppChannelMixer.greenOutGreenIn.overrideState;
             if (_baseGreenOutGreenIn == 0f)
                 _baseGreenOutGreenIn = 1f; // URP default identity
             _cachedPostFxBaselines = true;
+        }
+    }
+
+    private void ResetPostProcessingToBaselines()
+    {
+        if (postProcessVolume == null)
+            return;
+        if (_ppColorAdjustments != null)
+        {
+            _ppColorAdjustments.hueShift.overrideState = _baseCAHueShiftOverride;
+            _ppColorAdjustments.hueShift.value = _baseHueShiftDegrees;
+            _ppColorAdjustments.saturation.overrideState = _baseCASaturationOverride;
+            _ppColorAdjustments.saturation.value = _baseSaturation;
+            _ppColorAdjustments.contrast.overrideState = _baseCAContrastOverride;
+            _ppColorAdjustments.contrast.value = _baseContrast;
+            _ppColorAdjustments.postExposure.overrideState = _baseCAPostExposureOverride;
+            _ppColorAdjustments.postExposure.value = _basePostExposure;
+        }
+        if (_ppLensDistortion != null)
+        {
+            _ppLensDistortion.intensity.overrideState = _baseLensDistortionOverride;
+            _ppLensDistortion.intensity.value = _baseLensDistortion;
+        }
+        if (_ppChannelMixer != null)
+        {
+            _ppChannelMixer.greenOutGreenIn.overrideState = _baseGreenOverride;
+            _ppChannelMixer.greenOutGreenIn.value = _baseGreenOutGreenIn;
         }
     }
 

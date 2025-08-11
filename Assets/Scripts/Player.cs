@@ -120,6 +120,8 @@ public class Player : MonoBehaviour
             baseSpriteColor = spriteRenderer.color;
             baseSprite = spriteRenderer.sprite;
         }
+        if (animator == null)
+            animator = GetComponent<Animator>();
         if (animator != null)
         {
             baseController = animator.runtimeAnimatorController;
@@ -560,17 +562,20 @@ public class Player : MonoBehaviour
     private void UpdateSeverityVisuals()
     {
         var gm = GameManager.Instance;
-        float t = gm != null ? gm.VisualSeverity01 : 0f;
+        // Use base severity for sprite visuals
+        float severity = gm != null ? gm.Severity01 : 0f;
+        // Use visual severity (includes time-based component) for Animator-driven forms
+        float visualSeverity = gm != null ? gm.VisualSeverity01 : severity;
 
-        // Drive Animator based on severity if configured
-        UpdateSeverityAnimator(t);
+        // Drive Animator based on visual severity if configured
+        UpdateSeverityAnimator(visualSeverity);
 
         if (spriteRenderer != null)
         {
             if (useSeverityTint)
             {
-                Color target = severityTintGradient != null ? severityTintGradient.Evaluate(t) : Color.Lerp(Color.white, Color.green, t);
-                spriteRenderer.color = Color.Lerp(baseSpriteColor, target, t);
+                Color target = severityTintGradient != null ? severityTintGradient.Evaluate(severity) : Color.Lerp(Color.white, Color.green, severity);
+                spriteRenderer.color = Color.Lerp(baseSpriteColor, target, severity);
             }
 
             if (useSeveritySpriteSwap && severitySprites != null && severitySprites.Count > 0)
@@ -580,7 +585,7 @@ public class Player : MonoBehaviour
                     animator.enabled = false;
                 }
                 int count = severitySprites.Count;
-                int idx = Mathf.Clamp(Mathf.FloorToInt(t * (count - 1 + 0.0001f)), 0, count - 1);
+                int idx = Mathf.Clamp(Mathf.FloorToInt(severity * (count - 1 + 0.0001f)), 0, count - 1);
                 var s = severitySprites[idx];
                 if (s != null && spriteRenderer.sprite != s)
                 {
@@ -592,23 +597,16 @@ public class Player : MonoBehaviour
 
     private void UpdateSeverityAnimator(float t)
     {
-        if (animator == null || !useAnimatorSeverity)
-        {
-            // Even if not driving parameters, we may be swapping controllers
-            if (useAnimatorControllerSwap && severityControllers != null && severityControllers.Count > 0)
-            {
-                SwapAnimatorControllerIfNeeded(t);
-            }
+        if (animator == null)
             return;
-        }
 
-        // Float 0..1
-        if (!string.IsNullOrEmpty(animatorSeverityFloatParam))
+        // Optional float 0..1 parameter
+        if (useAnimatorSeverity && !string.IsNullOrEmpty(animatorSeverityFloatParam))
         {
             animator.SetFloat(animatorSeverityFloatParam, t);
         }
 
-        // Integer level 0..(levels-1)
+        // Optional integer level 0..(levels-1) — works even if useAnimatorSeverity is false
         if (useAnimatorIntLevels && !string.IsNullOrEmpty(animatorSeverityIntParam))
         {
             int levels = Mathf.Max(2, animatorLevels);
@@ -616,7 +614,7 @@ public class Player : MonoBehaviour
             animator.SetInteger(animatorSeverityIntParam, levelIndex);
         }
 
-        // Optionally also swap controller based on severity
+        // Optional controller swap
         if (useAnimatorControllerSwap && severityControllers != null && severityControllers.Count > 0)
         {
             SwapAnimatorControllerIfNeeded(t);

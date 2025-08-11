@@ -95,6 +95,7 @@ namespace GameJam.Combat
             }
 
             var gm = GameManager.Instance;
+            // Use VisualSeverity01 for forms (can include time-based green curve)
             float t = gm != null ? gm.VisualSeverity01 : 0f;
             if (neverDecrease)
             {
