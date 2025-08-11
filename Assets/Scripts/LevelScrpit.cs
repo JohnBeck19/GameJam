@@ -8,6 +8,8 @@ public class LevelScrpit : MonoBehaviour
     public int nextLvlCap;
     public int maxLvl = 50;
 
+    public CardSelectionManager cardManager;
+
     private void OnCollisionEnter2D(Collision2D collision)
     {
         Debug.Log("Triggered");
@@ -32,6 +34,7 @@ public class LevelScrpit : MonoBehaviour
             {
                 currentLvl += 1;
                 expToNextLvl *= nextLvlCap;
+                cardManager.ShowCards();
                 currentExp = 0;
             }
         }

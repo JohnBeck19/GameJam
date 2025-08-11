@@ -6,7 +6,10 @@ public class CardSelectionManager : MonoBehaviour
     public List<Card> allCards;
     public Transform cardParent;
     public GameObject[] cardUIPrefab;
+    public GameObject cardUI;
     public Player player;
+
+    public GameManager gm;
 
     public void ShowCards()
     {
@@ -24,11 +27,25 @@ public class CardSelectionManager : MonoBehaviour
             GameObject cardUI = Instantiate(cardUIPrefab[i], cardParent);
             cardUI.GetComponent<CardUI>().Setup(card, this);
         }
+        EnableCardUI();
+        gm.TogglePause();
     }
 
     public void ChosenCard(Card card)
     {
         card.UpgradePlayerStates(player);
+        gm.TogglePause();
+        DisableCardUI();
+    }
+
+    public void EnableCardUI()
+    {
+        cardUI.SetActive(true);
+    }
+
+    public void DisableCardUI()
+    {
+        cardUI.SetActive(false);
     }
    
 }

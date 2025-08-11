@@ -12,10 +12,10 @@ public class ExpScript : MonoBehaviour
     }
     void FixedUpdate()
     {
-        if((this.transform.position - player.position).magnitude < 1)
-        {
-            rb.AddRelativeForce(player.position.normalized * 1.5f,ForceMode2D.Impulse);
-        }
+        //if((this.transform.position - player.position).magnitude < 1)
+        //{
+        //    rb.AddRelativeForce(player.position.normalized * 1.5f,ForceMode2D.Impulse);
+        //}
     }
     public void Comsumed()
     {

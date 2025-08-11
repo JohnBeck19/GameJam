@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 7536191101927832171}
   - component: {fileID: 2937866454612308852}
   - component: {fileID: -353987614568626255}
+  - component: {fileID: 4570778351948803733}
   m_Layer: 3
   m_Name: Player 1
   m_TagString: Untagged
@@ -327,6 +328,21 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &4570778351948803733
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2631157565860757846}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3eee3cb7ce870a844ba1d351788dd3c8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LevelScrpit
+  expToNextLvl: 15
+  nextLvlCap: 10
+  maxLvl: 50
 --- !u!1 &7931741704193341519
 GameObject:
   m_ObjectHideFlags: 0

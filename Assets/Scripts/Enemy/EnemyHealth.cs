@@ -14,6 +14,9 @@ namespace GameJam.Enemies
         [Tooltip("If true, ignores further damage while at or below 0 HP to avoid double-death.")]
         [SerializeField] private bool ignoreDamageWhenDead = true;
 
+
+        [SerializeField] GameObject expPrefb;
+
         public float MaxHealth => maxHealth;
         public float CurrentHealth => currentHealth;
         public bool IsDead => currentHealth <= 0f;
@@ -57,6 +60,7 @@ namespace GameJam.Enemies
 
         private void Die()
         {
+            Instantiate(expPrefb, this.transform);
             if (!destroyOnDeath) return;
             Destroy(gameObject);
         }
