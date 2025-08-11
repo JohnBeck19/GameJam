@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 708ef58652c6fdc419f1f714ad42067b, type: 3}
   m_Name: MetalChestPlate
   m_EditorClassIdentifier: Assembly-CSharp::Card
-  itemName: Metal Chess Plate
+  itemName: Metal Chest Plate
   type: 1
   icon: {fileID: -9036636900776448777, guid: b6c6e1376fe39b84c913fc9f5d2da6c9, type: 3}
   description: 'Plus 10 to Defense

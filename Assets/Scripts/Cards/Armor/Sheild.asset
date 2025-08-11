@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 708ef58652c6fdc419f1f714ad42067b, type: 3}
   m_Name: Sheild
   m_EditorClassIdentifier: Assembly-CSharp::Card
-  itemName: Shelid
+  itemName: Shield
   type: 1
   icon: {fileID: -6033806017665178977, guid: 9a79a9d44b2db0e47a930d40f17adb99, type: 3}
   description: Gives a plus 7 to defense

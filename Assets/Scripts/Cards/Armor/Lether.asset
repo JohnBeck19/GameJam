@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 708ef58652c6fdc419f1f714ad42067b, type: 3}
   m_Name: Lether
   m_EditorClassIdentifier: Assembly-CSharp::Card
-  itemName: Lether
+  itemName: Leather
   type: 1
   icon: {fileID: -2166322150585272835, guid: 7faff57a1ab87d248bcdbc54a8e907aa, type: 3}
   description: Plus 5 to defense

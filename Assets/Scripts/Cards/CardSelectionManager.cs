@@ -7,15 +7,14 @@ public class CardSelectionManager : MonoBehaviour
     public Transform cardParent;
     public GameObject[] cardUIPrefab;
     public GameObject cardUI;
+    [SerializeField] private CanvasGroup cardUICanvasGroup; // optional fade/visibility without disabling children
+    [SerializeField] private bool useExistingChildren = true; // Use Card1/Card2/Card3 under panel instead of instantiating
     public Player player;
 
     public GameManager gm;
 
     public void ShowCards()
     {
-        // Clear old cards
-        foreach (Transform child in cardParent) Destroy(child.gameObject);
-
         // Pick random 3 cards
         List<Card> choices = new List<Card>(allCards);
         for (int i = 0; i < 3 && choices.Count > 0; i++)
@@ -24,8 +23,26 @@ public class CardSelectionManager : MonoBehaviour
             Card card = choices[rand];
             choices.RemoveAt(rand);
 
-            GameObject cardUI = Instantiate(cardUIPrefab[i], cardParent);
-            cardUI.GetComponent<CardUI>().Setup(card, this);
+            if (useExistingChildren && cardParent != null && cardParent.childCount >= i + 1)
+            {
+                Transform slot = cardParent.GetChild(i);
+                slot.gameObject.SetActive(true);
+                var cui = slot.GetComponent<CardUI>();
+                if (cui != null)
+                {
+                    cui.Setup(card, this);
+                }
+            }
+            else
+            {
+                // Instantiate from prefab if provided
+                if (cardUIPrefab != null && i < cardUIPrefab.Length && cardUIPrefab[i] != null)
+                {
+                    GameObject go = Instantiate(cardUIPrefab[i], cardParent);
+                    var cui = go.GetComponent<CardUI>();
+                    if (cui != null) cui.Setup(card, this);
+                }
+            }
         }
         EnableCardUI();
         gm.TogglePause();
@@ -38,14 +55,51 @@ public class CardSelectionManager : MonoBehaviour
         DisableCardUI();
     }
 
+    private void EnsureCanvasGroup()
+    {
+        if (cardUICanvasGroup == null && cardUI != null)
+        {
+            cardUICanvasGroup = cardUI.GetComponent<CanvasGroup>();
+            if (cardUICanvasGroup == null)
+            {
+                cardUICanvasGroup = cardUI.AddComponent<CanvasGroup>();
+                cardUICanvasGroup.alpha = 0f;
+                cardUICanvasGroup.interactable = false;
+                cardUICanvasGroup.blocksRaycasts = false;
+            }
+        }
+    }
+
     public void EnableCardUI()
     {
-        cardUI.SetActive(true);
+        EnsureCanvasGroup();
+        if (cardUICanvasGroup != null)
+        {
+            cardUI.SetActive(true);
+            cardUICanvasGroup.alpha = 1f;
+            cardUICanvasGroup.interactable = true;
+            cardUICanvasGroup.blocksRaycasts = true;
+        }
+        else
+        {
+            cardUI.SetActive(true);
+        }
     }
 
     public void DisableCardUI()
     {
-        cardUI.SetActive(false);
+        EnsureCanvasGroup();
+        if (cardUICanvasGroup != null)
+        {
+            // Hide without disabling children/components
+            cardUICanvasGroup.alpha = 0f;
+            cardUICanvasGroup.interactable = false;
+            cardUICanvasGroup.blocksRaycasts = false;
+        }
+        else
+        {
+            cardUI.SetActive(false);
+        }
     }
    
 }
