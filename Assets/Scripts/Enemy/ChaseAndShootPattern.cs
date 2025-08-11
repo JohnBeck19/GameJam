@@ -35,7 +35,15 @@ namespace GameJam.Enemies
                 if (s.fireTimer >= Mathf.Max(0.05f, fireInterval))
                 {
                     s.fireTimer = 0f;
-                    agent.FireAllPatterns();
+                    // Only fire if target is within attack range
+                    if (target != null)
+                    {
+                        float range = agent.GetAttackRange();
+                        if (((target.position - agent.transform.position).sqrMagnitude) <= (range * range))
+                        {
+                            agent.FireAllPatterns();
+                        }
+                    }
                 }
             }
         }

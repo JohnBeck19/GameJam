@@ -10,6 +10,10 @@ namespace GameJam.Enemies
         [SerializeField] private float detectionRadius = 8f;
         [SerializeField] private LayerMask playerLayerMask;
 
+        [Header("Attacking")]
+        [Tooltip("Enemies will only fire when the target is within this range. Defaults to detection radius if <= 0.")]
+        [SerializeField] private float attackRange = 0f;
+
         [Header("Movement")]
         [SerializeField] private float moveSpeed = 3f;
         [SerializeField] private float facingAngleOffset = 0f;
@@ -82,6 +86,14 @@ namespace GameJam.Enemies
         public void FireAllPatterns()
         {
             if (attackPatterns == null) return;
+
+            // Only shoot if we have a target and it's within attack range
+            if (currentTarget == null) return;
+            float range = attackRange > 0f ? attackRange : detectionRadius;
+            if (((currentTarget.position - transform.position).sqrMagnitude) > (range * range))
+            {
+                return;
+            }
             foreach (var p in attackPatterns)
             {
                 if (p == null) continue;
@@ -92,6 +104,7 @@ namespace GameJam.Enemies
         public Transform GetTarget() => currentTarget;
         public float GetMoveSpeed() => moveSpeed;
         public Transform GetFirePointOrSelf() => firePoint != null ? firePoint : transform;
+        public float GetAttackRange() => attackRange > 0f ? attackRange : detectionRadius;
 
         private void AcquireTarget()
         {

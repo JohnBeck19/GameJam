@@ -9,11 +9,17 @@ EditorBuildSettings:
     path: Assets/Scenes/SampleScene.unity
     guid: 8c9cfa26abfee488c85f1582747f6a02
   - enabled: 1
-    path: Assets/Scenes/Lobby.unity
-    guid: 308c301595018e14981fa35431271b27
+    path: Assets/Scenes/Title.unity
+    guid: 26f9feb37efd9414cac10d53fe3955cc
   - enabled: 1
     path: Assets/Scenes/Game.unity
-    guid: 68e2654637aa32a45b6a854ad6a57f6d
+    guid: 861b2d6f5b50b204b9faf36b0379ea67
+  - enabled: 1
+    path: Assets/Scenes/GameOver.unity
+    guid: 1da7cae9ceea80541b79b95206ec90f9
+  - enabled: 0
+    path: Assets/Scenes/Lobby.unity
+    guid: 308c301595018e14981fa35431271b27
   - enabled: 0
     path: Assets/Scenes/NGO_Setup.unity
     guid: 9e04b759c6da3c0499852722603ca0b5

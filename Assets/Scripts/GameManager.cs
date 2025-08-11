@@ -8,6 +8,12 @@ using UnityEngine.Rendering.Universal;
 public class GameManager : MonoBehaviour
 {
     private static GameManager _instance;
+    public static GameManager Instance => _instance;
+    [Header("Scene Names")]
+    [SerializeField] private string titleSceneName = "Title";
+    [SerializeField] private string gameSceneName = "Game";
+    [SerializeField] private string gameOverSceneName = "GameOver";
+
 
     [Header("Bounds Settings")]
     [Tooltip("If provided, the player's position must remain within this collider's bounds. Leave empty to auto-compute from all Tilemaps in the scene.")]
@@ -62,6 +68,9 @@ public class GameManager : MonoBehaviour
     private readonly List<Color> _originalTilemapColors = new List<Color>();
 
     private Transform _playerTransform;
+    [Header("Player Spawning")]
+    [SerializeField] private Player playerPrefab;
+    private Player _currentPlayer;
     private Bounds _cachedWorldBounds;
     private bool _hasComputedBounds;
     private bool _reloadScheduled;
@@ -139,7 +148,8 @@ public class GameManager : MonoBehaviour
     private void InitializeSceneDependencies()
     {
         // Player
-        _playerTransform = FindPlayerTransform();
+        EnsureScenePlayer();
+        _playerTransform = _currentPlayer != null ? _currentPlayer.transform : FindPlayerTransform();
 
         // Tilemaps and their original colors
         _tilemaps.Clear();
@@ -172,6 +182,26 @@ public class GameManager : MonoBehaviour
         // Fallback to tag
         var playerByTag = GameObject.FindGameObjectWithTag("Player");
         return playerByTag != null ? playerByTag.transform : null;
+    }
+
+    private void EnsureScenePlayer()
+    {
+        // If a player exists in the scene, use it; otherwise spawn from prefab
+        var foundPlayers = FindObjectsByType<Player>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        if (foundPlayers != null && foundPlayers.Length > 0)
+        {
+            _currentPlayer = foundPlayers[0];
+            return;
+        }
+
+        if (playerPrefab != null)
+        {
+            // Try to find a spawn point tagged or named appropriately
+            Vector3 spawnPos = Vector3.zero;
+            var spawnObj = GameObject.FindWithTag("PlayerSpawn");
+            if (spawnObj != null) spawnPos = spawnObj.transform.position;
+            _currentPlayer = Instantiate(playerPrefab, spawnPos, Quaternion.identity);
+        }
     }
 
     private void FindAllTilemapsAndCacheOriginalColors()
@@ -260,6 +290,43 @@ public class GameManager : MonoBehaviour
         var scene = SceneManager.GetActiveScene();
         SceneManager.LoadScene(scene.name);
         // Note: OnSceneLoaded will reinitialize references and reapply current hue state
+    }
+
+    public void OnPlayerDied()
+    {
+        // Reset state for a fresh run and return to Title
+        ResetForNewRun();
+        DestroyPersistentPlayer();
+        // Ensure gameplay is unpaused
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(string.IsNullOrEmpty(gameOverSceneName) ? "GameOver" : gameOverSceneName);
+    }
+
+    public void ResetForNewRun()
+    {
+        // Reset game-wide state that persists across scenes
+        _hasExitedOnce = false;
+        _exitCount = 0;
+        currentSeverity = 0f;
+        currentHueOffset01 = 0f;
+        _greenCurveTime01 = 0f;
+        _reloadScheduled = false;
+        _cachedPostFxBaselines = false;
+
+        // Reset player runtime state if we are keeping it around
+        if (_currentPlayer != null)
+        {
+            _currentPlayer.ResetState();
+        }
+    }
+
+    public void DestroyPersistentPlayer()
+    {
+        if (_currentPlayer != null)
+        {
+            try { Destroy(_currentPlayer.gameObject); }
+            finally { _currentPlayer = null; _playerTransform = null; }
+        }
     }
 
     private void AdvanceHue(float deltaTime)

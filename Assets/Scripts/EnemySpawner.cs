@@ -60,6 +60,12 @@ public class EnemySpawner : MonoBehaviour
     [Tooltip("Attempts to sample a random ground cell each spawn tick.")]
     [SerializeField] private int groundSampleAttempts = 40;
 
+    [Header("Fallback Area Sampling")]
+    [Tooltip("If no valid ground tile position or spawn point is found, attempt to sample inside the camera's visible bounds.")]
+    [SerializeField] private bool fallbackToCameraBounds = true;
+    [Tooltip("Extra world-space padding around camera bounds used for fallback sampling.")]
+    [SerializeField] private float cameraBoundsPadding = 2f;
+
     private readonly List<GameObject> _alive = new List<GameObject>();
     private float _difficulty;
     private float _spawnTimer;
@@ -190,13 +196,16 @@ public class EnemySpawner : MonoBehaviour
                 if (IsFarEnoughFromPlayer(t.position))
                     return t.position;
             }
-            // Last resort, pick first valid
-            for (int i = 0; i < spawnPoints.Count; i++)
-            {
-                var t = spawnPoints[i];
-                if (t != null) return t.position;
-            }
-            return null;
+            // No valid spawn point respecting player radius this tick
+            // Fall through to fallback sampling
+        }
+
+        // Fallback: sample inside camera bounds if enabled
+        if (fallbackToCameraBounds)
+        {
+            Vector3? camPos = FindRandomCameraPosition();
+            if (camPos.HasValue)
+                return camPos.Value;
         }
 
         // Default: spawn at this spawner's position if acceptable
@@ -246,6 +255,15 @@ public class EnemySpawner : MonoBehaviour
                 groundTilemaps.Add(tm);
             }
         }
+        // If no matching names were found, include all tilemaps as a fallback
+        if (groundTilemaps.Count == 0)
+        {
+            for (int i = 0; i < all.Length; i++)
+            {
+                var tm = all[i];
+                if (tm != null) groundTilemaps.Add(tm);
+            }
+        }
     }
 
     private bool IsFarEnoughFromPlayer(Vector3 position)
@@ -253,6 +271,38 @@ public class EnemySpawner : MonoBehaviour
         if (player == null || minDistanceFromPlayer <= 0f)
             return true;
         return (position - player.position).sqrMagnitude >= (minDistanceFromPlayer * minDistanceFromPlayer);
+    }
+
+    private Vector3? FindRandomCameraPosition()
+    {
+        var cam = Camera.main;
+        if (cam == null || !cam.orthographic)
+            return null;
+
+        float height = cam.orthographicSize * 2f + cameraBoundsPadding * 2f;
+        float width = height * cam.aspect;
+        Vector3 center = cam.transform.position;
+        Vector3 min = new Vector3(center.x - width * 0.5f, center.y - height * 0.5f, 0f);
+        Vector3 max = new Vector3(center.x + width * 0.5f, center.y + height * 0.5f, 0f);
+
+        for (int attempt = 0; attempt < Mathf.Max(1, placementAttempts); attempt++)
+        {
+            float x = Random.Range(min.x, max.x);
+            float y = Random.Range(min.y, max.y);
+            Vector3 pos = new Vector3(x, y, 0f);
+            if (IsFarEnoughFromPlayer(pos))
+                return pos;
+        }
+        return null;
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (player != null && minDistanceFromPlayer > 0f)
+        {
+            Gizmos.color = new Color(1f, 0f, 0f, 0.25f);
+            Gizmos.DrawWireSphere(player.position, minDistanceFromPlayer);
+        }
     }
 }
 

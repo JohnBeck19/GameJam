@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c333e04295901d41864b03a47e3b32d, type: 3}
   m_Name: BoomerangTrajectory
   m_EditorClassIdentifier: Assembly-CSharp::GameJam.Combat.BoomerangTrajectory
-  outwardDuration: 0.6
-  returnDuration: 0.6
+  outwardDuration: 1
+  returnDuration: 1
   outwardCurve:
     serializedVersion: 2
     m_Curve:
@@ -26,6 +26,15 @@ MonoBehaviour:
       weightedMode: 0
       inWeight: 0
       outWeight: 0
+    - serializedVersion: 3
+      time: 0.34285617
+      value: 0.9178735
+      inSlope: 1.4623206
+      outSlope: 1.4623206
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
     - serializedVersion: 3
       time: 1
       value: 1

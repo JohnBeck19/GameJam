@@ -177,7 +177,7 @@ namespace GameJam.Combat
 
             if (destroyOnPlayerHit && playerMask != 0 && (playerMask.value & (1 << otherLayer)) != 0)
             {
-                // TODO: apply damage to player when Health is implemented on player object
+                Player.Instance.TakeDmg(totalDamage);
                 Destroy(gameObject);
                 return;
             }

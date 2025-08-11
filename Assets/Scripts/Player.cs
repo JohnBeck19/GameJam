@@ -4,6 +4,7 @@ using System.Collections.Generic;
 
 public class Player : MonoBehaviour
 {
+    public static Player Instance { get; private set; }
     [Header("Health")]
     [SerializeField] private float maxHealth { set; get; } = 5f;
     [SerializeField] private float currentHealth = 5f;
@@ -54,6 +55,14 @@ public class Player : MonoBehaviour
 
     void Awake()
     {
+        // Singleton setup
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+
         // Initialize health
         currentHealth = Mathf.Clamp(currentHealth, 0f, maxHealth);
 
@@ -72,6 +81,14 @@ public class Player : MonoBehaviour
         
         // Setup input system
         SetupInput();
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            Instance = null;
+        }
     }
     
     void SetupRigidbody()
@@ -388,10 +405,76 @@ public class Player : MonoBehaviour
     public void TakeDmg(float dmg)
     {
         currentHealth -= dmg * dmgReduction;
+        if (currentHealth <= 0f)
+        {
+            currentHealth = 0f;
+            Die();
+        }
     }
 
     public void PlusDmgReduction(float reduction)
     {
         dmgReduction -= reduction;
+    }
+
+    public void ResetState()
+    {
+        // Restore core gameplay state to starting values
+        currentHealth = maxHealth;
+        dmgReduction = 1f;
+
+        moveInput = Vector2.zero;
+        currentVelocity = Vector2.zero;
+        isMoving = false;
+        facingDirection = Vector2.right;
+
+        isDashing = false;
+        canDash = true;
+        dashTimer = 0f;
+        dashCooldownTimer = 0f;
+        dashDirection = Vector2.zero;
+        SetDashPhasing(false);
+
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector2.zero;
+            rb.angularVelocity = 0f;
+        }
+
+        // Reset rotation
+        transform.rotation = Quaternion.identity;
+
+        if (animator != null)
+        {
+            animator.Rebind();
+            animator.Update(0f);
+        }
+        _isDead = false;
+    }
+
+    private bool _isDead;
+    public void Die()
+    {
+        if (_isDead) return;
+        _isDead = true;
+
+        // Optionally disable input/collisions immediately
+        SetDashPhasing(false);
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector2.zero;
+        }
+
+        // Notify GameManager to handle reset and scene transition
+        var gm = GameManager.Instance;
+        if (gm != null)
+        {
+            gm.OnPlayerDied();
+        }
+        else
+        {
+            // Fallback: just reload current scene
+            UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
+        }
     }
 }

@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7672eba79fb3f044f9200f8f4099e185, type: 3}
+  m_Name: OrbitCirclePattern
+  m_EditorClassIdentifier: Assembly-CSharp::GameJam.Combat.OrbitCirclePattern
+  projectilePrefab: {fileID: 8308358028949851053, guid: ba641bc278c56304aafc48d7b60e83ec, type: 3}
+  trajectory: {fileID: 11400000, guid: d8ebbb7e67683e44fa86aecc0f13e750, type: 2}
+  projectileSpeed: 10
+  attachmentMode: 0
+  enableAngleCone: 1
+  coneHalfAngleDeg: 2.34
+  jitterPerProjectile: 1
+  projectileCount: 5
+  radius: 2
+  growthTime: 0.3
+  angularSpeedDegPerSec: 90
+  clockwise: 0
+  startAngleDeg: 0
+  alignToFirePoint: 1
