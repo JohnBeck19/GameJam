@@ -50,6 +50,9 @@ MonoBehaviour:
   exp: 5
   player: {fileID: 0}
   rb: {fileID: 5076848928433315024}
+  magnetRange: 3
+  magnetSpeed: 6
+  useTriggerPickup: 1
 --- !u!212 &689875665106015979
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -96,7 +99,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 2
   m_Sprite: {fileID: 4042250114822578979, guid: b7da8d11af2942e42ba00d3099f49e3a, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -116,7 +119,7 @@ Rigidbody2D:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2912945291175006830}
-  m_BodyType: 0
+  m_BodyType: 1
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
