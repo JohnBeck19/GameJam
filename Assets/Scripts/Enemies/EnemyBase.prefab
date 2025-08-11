@@ -192,6 +192,7 @@ MonoBehaviour:
   currentHealth: 10
   destroyOnDeath: 1
   ignoreDamageWhenDead: 1
+  expPrefb: {fileID: 2912945291175006830, guid: c5d67c43229d81b49abf166bd117932f, type: 3}
 --- !u!82 &-787688105064610377
 AudioSource:
   m_ObjectHideFlags: 0

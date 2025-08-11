@@ -147,6 +147,10 @@ public class Player : MonoBehaviour
     
     void SetupRigidbody()
     {
+        // Ensure we're a Dynamic body so collisions with walls resolve physically
+        if (rb.bodyType != RigidbodyType2D.Dynamic)
+            rb.bodyType = RigidbodyType2D.Dynamic;
+        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         rb.gravityScale = 0f; // No gravity for top-down
         rb.linearDamping = 0f; // We'll handle deceleration manually
         rb.constraints = RigidbodyConstraints2D.FreezeRotation; // Prevent rotation from physics
@@ -386,6 +390,32 @@ public class Player : MonoBehaviour
             if (dashCooldownTimer <= 0f)
             {
                 canDash = true;
+            }
+        }
+
+        // Safety: ensure collider trigger state matches dash state
+        EnsureDashColliderState();
+    }
+
+    private void EnsureDashColliderState()
+    {
+        if (playerColliders == null || playerColliders.Length == 0) return;
+        if (isDashing)
+        {
+            for (int i = 0; i < playerColliders.Length; i++)
+            {
+                var col = playerColliders[i];
+                if (col != null && !col.isTrigger) col.isTrigger = true;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < playerColliders.Length; i++)
+            {
+                var col = playerColliders[i];
+                if (col == null) continue;
+                bool restoreTrigger = originalColliderIsTriggerStates != null && i < originalColliderIsTriggerStates.Length && originalColliderIsTriggerStates[i];
+                if (col.isTrigger != restoreTrigger) col.isTrigger = restoreTrigger;
             }
         }
     }

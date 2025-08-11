@@ -60,7 +60,15 @@ namespace GameJam.Enemies
 
         private void Die()
         {
-            Instantiate(expPrefb, this.transform);
+            // Spawn EXP in world space (not as a child), so it isn't destroyed with the enemy
+            if (expPrefb != null)
+            {
+                Instantiate(expPrefb, transform.position, Quaternion.identity);
+            }
+            else
+            {
+                Debug.LogWarning($"EnemyHealth on {name} has no EXP prefab assigned.");
+            }
             if (!destroyOnDeath) return;
             Destroy(gameObject);
         }

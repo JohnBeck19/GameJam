@@ -10,15 +10,22 @@ public class LevelScrpit : MonoBehaviour
 
     public CardSelectionManager cardManager;
 
+    // Keep collision-based pickup support in case EXP uses non-trigger colliders
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        Debug.Log("Triggered");
-        if (collision.gameObject.GetComponent<ExpScript>())
+        if (collision == null) return;
+        var exp = collision.gameObject.GetComponent<ExpScript>();
+        if (exp != null)
         {
-            ExpScript exp = collision.gameObject.GetComponent<ExpScript>();
-            LevelUp(exp.exp);
+            AddExp(exp.exp);
             exp.Comsumed();
         }
+    }
+
+    // Public entry so EXP or other systems can grant XP without requiring physics collisions
+    public void AddExp(int amount)
+    {
+        LevelUp(amount);
     }
 
     void LevelUp(int exp)
