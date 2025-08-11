@@ -25,12 +25,19 @@ namespace GameJam.Combat
         [SerializeField]
         private float angleOffsetPerShotDeg = 10f;
 
+        [SerializeField] AudioSource audioSource;
+
         private float accumulatedAngleOffsetDeg;
         private float timer;
 
+        public void Start()
+        {
+            audioSource = GetComponent<AudioSource>();
+        }
         private void Reset()
         {
             firePoint = transform;
+            audioSource = GetComponent<AudioSource>();
         }
 
         private void Update()
@@ -60,6 +67,7 @@ namespace GameJam.Combat
             {
                 accumulatedAngleOffsetDeg += angleOffsetPerShotDeg;
             }
+            //audioSource.Play();
         }
 
         public void SetPattern(ShotPattern pattern)

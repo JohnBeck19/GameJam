@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 708ef58652c6fdc419f1f714ad42067b, type: 3}
+  m_Name: Sheild
+  m_EditorClassIdentifier: Assembly-CSharp::Card
+  itemName: Shelid
+  type: 1
+  icon: {fileID: -6033806017665178977, guid: 9a79a9d44b2db0e47a930d40f17adb99, type: 3}
+  description: Gives a plus 7 to defense
+  prefb: {fileID: 0}
+  value: 0.07
+  maxLvl: 0

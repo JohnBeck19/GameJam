@@ -8,7 +8,7 @@ public class Card : ScriptableObject
     public Sprite icon;
     [TextArea] public string description;
     public GameObject prefb;
-    public int value; //how much to increase or level up
+    public float value; //how much to increase or level up
     public int maxLvl;
     public enum UpgradeType { WEAPON, ARMOR, ATTACKSPEED,HEALTHBOOST }
 

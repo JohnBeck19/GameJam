@@ -12,10 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 708ef58652c6fdc419f1f714ad42067b, type: 3}
   m_Name: Sword
   m_EditorClassIdentifier: Assembly-CSharp::Card
-  itemName: YOU BEEN CARD
+  itemName: Sword
   type: 0
-  icon: {fileID: 0}
-  description: 'REEEEE
+  icon: {fileID: -3753825769889500098, guid: 97723453c66dc1642a4fa589237cb5bc, type: 3}
+  description: 'Atk dmg increass
 
 '
-  value: 1
+  prefb: {fileID: 0}
+  value: 5
+  maxLvl: 0

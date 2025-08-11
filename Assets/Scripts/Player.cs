@@ -86,6 +86,12 @@ public class Player : MonoBehaviour
     private RuntimeAnimatorController baseController;
     private int lastControllerIndex = -1;
 
+    //Audio Source and Clips
+    [Header("Audio")]
+    [SerializeField] AudioSource audioSource;
+    [SerializeField] AudioClip playerHitSound;
+    [SerializeField] AudioClip playerAttackSound;
+    [SerializeField] AudioClip playerRangeAttackSound;
 
 
     void Awake()
@@ -125,6 +131,8 @@ public class Player : MonoBehaviour
         
         // Setup input system
         SetupInput();
+
+        audioSource = GetComponent<AudioSource>();
     }
 
     private void OnDestroy()
@@ -458,6 +466,7 @@ public class Player : MonoBehaviour
     public void TakeDmg(float dmg)
     {
         currentHealth -= dmg * dmgReduction;
+        audioSource.PlayOneShot(playerHitSound);
         if (currentHealth <= 0f)
         {
             currentHealth = 0f;
@@ -467,7 +476,7 @@ public class Player : MonoBehaviour
 
     public void PlusDmgReduction(float reduction)
     {
-        dmgReduction -= reduction;
+        if(dmgReduction > .2f) dmgReduction -= reduction;
     }
 
     public void ResetState()
